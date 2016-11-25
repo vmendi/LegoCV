@@ -5,8 +5,7 @@ import numpy as np
 
 
 def extract_max_contour_rect(img_idx, img):
-    threshold_img = cv2.adaptiveThreshold(img, maxValue=255, adaptiveMethod=cv2.ADAPTIVE_THRESH_MEAN_C,
-                                          thresholdType=cv2.THRESH_BINARY_INV, blockSize=5, C=3)
+    ret, threshold_img = cv2.threshold(img, thresh=128, maxval=255, type=cv2.THRESH_BINARY_INV)
 
     # Gausian removes small edges during Canny
     threshold_img = cv2.GaussianBlur(threshold_img, (11, 11), 0)
@@ -14,7 +13,7 @@ def extract_max_contour_rect(img_idx, img):
     # threshold_img = cv2.erode(threshold_img.copy(), kernel=np.ones((1,1), np.uint8), iterations=2)
     # threshold_img = cv2.morphologyEx(threshold_img.copy(), cv2.MORPH_OPEN, np.ones((5,5), np.uint8))
 
-    edges_img = cv2.Canny(threshold_img, 100, 255)
+    edges_img = cv2.Canny(threshold_img, threshold1=100, threshold2=255, apertureSize=3)
 
     # Close before findContours helps with discontinuities in the perimeters
     edges_img = cv2.morphologyEx(edges_img, cv2.MORPH_CLOSE, np.ones((5,5), np.uint8))
