@@ -1,8 +1,10 @@
 import cv2
 import numpy as np
+import video
 
 # http://docs.opencv.org/trunk/d6/d00/tutorial_py_root.html
 
+cam_source = 0
 
 def extract_max_contour_rect(img_idx, img):
     ret, threshold_img = cv2.threshold(img, thresh=128, maxval=255, type=cv2.THRESH_BINARY_INV)
@@ -104,12 +106,22 @@ def iterate_over_images(img_names):
         find_corners(img_idx, img, gray)
 
 if __name__ == '__main__':
-    cv2.namedWindow('main', flags=cv2.WINDOW_NORMAL)
+    cv2.namedWindow('main')
 
     filenames = ['in/IMG_00064.jpg', 'in/IMG_00065.jpg', 'in/IMG_00066.jpg', 'in/IMG_00068.jpg', 'in/IMG_00070.jpg',
                  'in/IMG_00072.jpg', 'in/IMG_00073.jpg', 'in/IMG_00074.jpg', 'in/IMG_00075.jpg', 'in/IMG_00076.jpg',
                  'in/IMG_00077.jpg', 'in/IMG_00078.jpg']
 
-    iterate_over_images(filenames)
+    # iterate_over_images(filenames)
+    cap = video.create_capture(1)
+
+    while True:
+        flag, captured_img = cap.read()
+        cv2.imshow('main', cv2.resize(captured_img, (0, 0), fx=0.5, fy=0.5))
+
+        ch = cv2.waitKey(1)
+        if ch == 27:
+            break
+
 
 cv2.destroyAllWindows()
