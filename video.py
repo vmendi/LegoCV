@@ -24,10 +24,10 @@ def create_capture(source = 0):
     cap = cv2.VideoCapture(source)
 
     # Change the camera setting using the set() function
-    # cap.set(cv2.cv.CV_CAP_PROP_EXPOSURE, -6.0)
+    # cap.set(cv2.CAP_PROP_EXPOSURE, -1.0)
     # cap.set(cv2.cv.CV_CAP_PROP_GAIN, 4.0)
     # cap.set(cv2.cv.CV_CAP_PROP_BRIGHTNESS, 144.0)
-    # cap.set(cv2.cv.CV_CAP_PROP_CONTRAST, 27.0)
+    # cap.set(cv2.CAP_PROP_CONTRAST, 27.0)
     # cap.set(cv2.cv.CV_CAP_PROP_HUE, 13.0) # 13.0
     # cap.set(cv2.cv.CV_CAP_PROP_SATURATION, 28.0)
 
