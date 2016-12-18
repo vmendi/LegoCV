@@ -4,4 +4,5 @@ python3_env/
 __pycache__
 dist/
 build/
+out/
 main.spec
