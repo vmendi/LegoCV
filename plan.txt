@@ -1,0 +1,33 @@
+- Es mejor hacer un resize (BICUBIC) antes de proceso la imagen?
+- Copiar DB
+- Cuantas de cada. Ordenar por mas frecuentes.
+- Busca models muy alejados entre si.
+- Numero de moldes por pieza.
+- Escoger pagina [0.80, 1.50]
+- Pedir piezas de esas paginas.
+- Botón "Take picture" aparece después de una pesada.
+- Soporte en disco (o en DB?) para grabar todas las pictures per brick.
+
+- Imprimir o construir algún tipo de dibujo de calibrado.
+	- Calibrar, probar.
+
+- Probar cámara lateral barata.
+	- Si funciona, añadir a sesión de fotos.
+	- Multiport USB.
+
+- Fijar todos los componentes para que sea repetible.
+	- Fijar la tapa de la backlight
+	- Fijar el plafón a la estructura base.
+	- Comprar barras para dar estructura por abajo
+	- Pensar manera de hacer "suelo".
+	- Fijar backlight y la base.
+
+- Probar si cabe báscula. 
+	- Ganar intuición de distancias. 
+	- Hacer una foto para pensar en la siguiente version.
+	
+- Hacer fotos de todas esas piezas.
+	- Foto con backlighting.
+	- Foto con top lighting.
+
+.... desarrollar el diferenciador post-peso.
