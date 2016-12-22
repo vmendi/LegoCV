@@ -2,6 +2,8 @@ from time import strftime
 
 import cv2
 import numpy as np
+from os.path import isfile
+from os import listdir
 
 import video
 
@@ -10,10 +12,10 @@ import video
 
 
 def extract_max_contour_rect(img):
-    ret, threshold_img = cv2.threshold(img, thresh=200, maxval=255, type=cv2.THRESH_BINARY_INV)
+    ret, threshold_img = cv2.threshold(img, thresh=230, maxval=255, type=cv2.THRESH_BINARY_INV)
 
     # Gausian removes small edges during Canny
-    threshold_img = cv2.GaussianBlur(threshold_img, (11, 11), 0)
+    # threshold_img = cv2.GaussianBlur(threshold_img, (11, 11), 0)
     # threshold_img = cv2.bilateralFilter(threshold_img.copy(), dst=threshold_img, d=3, sigmaColor=250, sigmaSpace=250)
     # threshold_img = cv2.erode(threshold_img.copy(), kernel=np.ones((1,1), np.uint8), iterations=2)
     # threshold_img = cv2.morphologyEx(threshold_img.copy(), cv2.MORPH_OPEN, np.ones((5,5), np.uint8))
@@ -55,26 +57,38 @@ def extract_max_contour_rect(img):
     return {'max_area_contour_rect': max_area_contour_rect,
             'threshold': threshold_img,
             'edges': edges_img,
-            'contours': contours_img}
+            'contours': contours_img,
+            'original': img}
 
 
 def save_to_file(detection_result, img_idx):
-    cv2.imwrite('out/{0}-threshold.png'.format(img_idx), detection_result['threshold'])
-    cv2.imwrite('out/{0}-edges.png'.format(img_idx), detection_result['edges'])
-    cv2.imwrite('out/{0}-contours.png'.format(img_idx), detection_result['contours'])
+    img_01 = detection_result['contours']
+    img_02 = detection_result['original']
+    img_03 = detection_result['threshold']
+    img_04 = detection_result['edges']
 
-    rect = detection_result['rect']
+    combined = np.zeros((img_01.shape[0] + img_03.shape[0], img_01.shape[1] + img_02.shape[1]), np.uint8)
+    combined[:img_01.shape[0], :img_01.shape[1]] = img_01
+    combined[:img_02.shape[0], img_01.shape[1]:img_01.shape[1] + img_02.shape[1]] = img_02
+    combined[img_01.shape[0]:img_01.shape[0] + img_03.shape[0], :img_03.shape[1]] = img_03
+    combined[img_01.shape[0]:img_01.shape[0] + img_04.shape[0], img_01.shape[1]:img_01.shape[1] + img_04.shape[1]] = img_04
 
-    print("Image {0} bounding rect ({1:.0f},{2:.0f}), angle {3:.0f}".format(img_idx, rect[1][0], rect[1][1], rect[2]))
+    rect = detection_result['max_area_contour_rect']
+    rect_text = "Bounding rect ({0:.0f},{1:.0f}), angle {2:.0f}".format(rect[1][0], rect[1][1], rect[2])
+
+    cv2.putText(combined, rect_text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1, cv2.LINE_AA)
+
+    cv2.imwrite('out/{0}-combined.png'.format(img_idx), combined)
+
+    print("Image {0} {1}".format(img_idx, rect_text))
 
 
 def iterate_over_images_detection(img_names):
     for img_idx, img_name in enumerate(img_names):
         img = cv2.imread(img_name)
-        img = cv2.resize(img, (1024, 768))
 
         height, width, color_depth = img.shape
-        img = img[50:height-50, 150:width-150]  # Crop from x, y, w, h -> 100, 200, 300, 400
+        img = img[100:height-100, 400:width-400]  # Crop from x, y, w, h -> 100, 200, 300, 400
         # NOTE: its img[y: y + h, x: x + w] and *not* img[x: x + w, y: y + h]
 
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -126,13 +140,11 @@ def capture():
 
 
 if __name__ == '__main__':
+    filenames = ['in/controlled/' + file for file in listdir('in/controlled') if "_00" in file]
+    filenames = [file for file in filenames if isfile(file)]
 
-    filenames = ['in/IMG_00064.jpg', 'in/IMG_00065.jpg', 'in/IMG_00066.jpg', 'in/IMG_00068.jpg', 'in/IMG_00070.jpg',
-                 'in/IMG_00072.jpg', 'in/IMG_00073.jpg', 'in/IMG_00074.jpg', 'in/IMG_00075.jpg', 'in/IMG_00076.jpg',
-                 'in/IMG_00077.jpg', 'in/IMG_00078.jpg']
-
-    # iterate_over_images_detection(filenames)
+    iterate_over_images_detection(filenames)
     # realtime_detection()
-    capture()
+    # capture()
 
 cv2.destroyAllWindows()
