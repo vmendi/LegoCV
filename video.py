@@ -20,21 +20,30 @@ import cv2
 #   16 CV_CAP_PROP_CONVERT_RGB Boolean flags indicating whether images should be converted to RGB.
 #   17 CV_CAP_PROP_WHITE_BALANCE Currently unsupported
 #   18 CV_CAP_PROP_RECTIFICATION Rectification flag for stereo cameras (note: only supported by DC1394 v 2.x backend currently)
+import time
+
+
 def create_capture(source = 0):
     cap = cv2.VideoCapture(source)
 
     # Change the camera setting using the set() function
-    # cap.set(cv2.CAP_PROP_EXPOSURE, -1.0)
+    # cap.set(cv2.CAP_PROP_EXPOSURE, 10)
+    # cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)
     # cap.set(cv2.cv.CV_CAP_PROP_GAIN, 4.0)
     # cap.set(cv2.cv.CV_CAP_PROP_BRIGHTNESS, 144.0)
     # cap.set(cv2.CAP_PROP_CONTRAST, 27.0)
     # cap.set(cv2.cv.CV_CAP_PROP_HUE, 13.0) # 13.0
     # cap.set(cv2.cv.CV_CAP_PROP_SATURATION, 28.0)
 
-    # cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920.0)
-    # cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080.0)
+    # cap.set(cv2.CAP_PROP_FRAME_WIDTH, 2592.0)
+    # cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1944.0)
 
     # cap.set(cv2.CAP_PROP_FPS, 5.0)
+
+    # cap.set(cv2.CAP_PROP_FORMAT, cv2.COLOR_YUV2RGB_YUY2)
+
+    cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
+
 
     # Read the current setting from the camera
     test = cap.get(cv2.CAP_PROP_POS_MSEC)
@@ -48,6 +57,11 @@ def create_capture(source = 0):
     hue = cap.get(cv2.CAP_PROP_HUE)
     gain = cap.get(cv2.CAP_PROP_GAIN)
     exposure = cap.get(cv2.CAP_PROP_EXPOSURE)
+    auto_exposure = cap.get(cv2.CAP_PROP_AUTO_EXPOSURE)
+    img_format = cap.get(cv2.CAP_PROP_FORMAT)
+    focus = cap.get(cv2.CAP_PROP_FOCUS)
+    auto_focus = cap.get(cv2.CAP_PROP_AUTOFOCUS)
+    fourcc = cap.get(cv2.CAP_PROP_FOURCC)
     print("Test: ", test)
     print("Ratio: ", ratio)
     print("Frame Rate: ", frame_rate)
@@ -59,5 +73,10 @@ def create_capture(source = 0):
     print("Hue: ", hue)
     print("Gain: ", gain)
     print("Exposure: ", exposure)
+    print("Auto-Exposure: ", auto_exposure)
+    print("Format: ", img_format)
+    print("Focus: ", focus)
+    print("Auto-Focus: ", auto_focus)
+    print("FourCC: ", fourcc)
 
     return cap

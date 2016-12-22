@@ -13,7 +13,7 @@
 
 - Probar cámara lateral barata.
 	- Si funciona, añadir a sesión de fotos.
-	- Multiport USB.
+	- Lateral stereoscopic
 
 - Fijar todos los componentes para que sea repetible.
 	- Fijar la tapa de la backlight
@@ -22,9 +22,6 @@
 	- Pensar manera de hacer "suelo".
 	- Fijar backlight y la base.
 
-- Probar si cabe báscula. 
-	- Ganar intuición de distancias. 
-	- Hacer una foto para pensar en la siguiente version.
 	
 - Hacer fotos de todas esas piezas.
 	- Foto con backlighting.

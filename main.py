@@ -1,6 +1,10 @@
+from time import strftime
+
 import cv2
 import numpy as np
+
 import video
+
 
 # http://docs.opencv.org/trunk/d6/d00/tutorial_py_root.html
 
@@ -80,7 +84,7 @@ def iterate_over_images_detection(img_names):
 
 
 def realtime_detection():
-    cap = video.create_capture(0)
+    cap = video.create_capture(1)
 
     while True:
         flag, captured_img = cap.read()
@@ -91,7 +95,7 @@ def realtime_detection():
         gray = cv2.cvtColor(captured_img, cv2.COLOR_BGR2GRAY)
         detection_result = extract_max_contour_rect(gray)
 
-        cv2.imshow('main', cv2.resize(captured_img, (0, 0), fx=0.5, fy=0.5, interpolation=cv2.INTER_CUBIC))
+        cv2.imshow('main', captured_img)
         cv2.imshow('threshold', cv2.resize(detection_result['threshold'], (0, 0), fx=0.5, fy=0.5))
         cv2.imshow('edges', cv2.resize(detection_result['edges'], (0, 0), fx=0.5, fy=0.5))
         cv2.imshow('contours', cv2.resize(detection_result['contours'], (0, 0), fx=0.5, fy=0.5))
@@ -101,14 +105,34 @@ def realtime_detection():
             break
 
 
+def capture():
+    cap_cam00 = video.create_capture(1)
+    cap_cam01 = video.create_capture(2)
+
+    while True:
+        flag, captured_img_00 = cap_cam00.read()
+        flag, captured_img_01 = cap_cam01.read()
+
+        if captured_img_00 is None or captured_img_01 is None:
+            continue
+
+        cv2.imshow('main_00', cv2.resize(captured_img_00, (0, 0), fx=0.5, fy=0.5, interpolation=cv2.INTER_CUBIC))
+        cv2.imshow('main_01', cv2.resize(captured_img_01, (0, 0), fx=0.5, fy=0.5, interpolation=cv2.INTER_CUBIC))
+
+        ch = cv2.waitKey(1)
+        if ch == 27:
+            cv2.imwrite('in/{0}_00.png'.format(strftime("%Y-%m-%d %H-%M-%S")), captured_img_00)
+            cv2.imwrite('in/{0}_01.png'.format(strftime("%Y-%m-%d %H-%M-%S")), captured_img_01)
+
+
 if __name__ == '__main__':
-    cv2.namedWindow('main')
 
     filenames = ['in/IMG_00064.jpg', 'in/IMG_00065.jpg', 'in/IMG_00066.jpg', 'in/IMG_00068.jpg', 'in/IMG_00070.jpg',
                  'in/IMG_00072.jpg', 'in/IMG_00073.jpg', 'in/IMG_00074.jpg', 'in/IMG_00075.jpg', 'in/IMG_00076.jpg',
                  'in/IMG_00077.jpg', 'in/IMG_00078.jpg']
 
     # iterate_over_images_detection(filenames)
-    realtime_detection()
+    # realtime_detection()
+    capture()
 
 cv2.destroyAllWindows()
