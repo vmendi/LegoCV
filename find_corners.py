@@ -40,22 +40,3 @@ def find_corners_subpixel(img_idx, img, gray):
     img[res[:, 3],res[:, 2]] = [0, 255, 0]
 
     cv2.imwrite('out/{0}-corners.png'.format(img_idx), img)
-
-
-def find_sift(orig_gray):
-    # sift = cv2.xfeatures2d.SIFT_create(nfeatures=100, nOctaveLayers=3, contrastThreshold=0.04, edgeThreshold=10,sigma=1.6)
-    sift = cv2.xfeatures2d.SIFT_create()
-
-    # http://docs.opencv.org/3.1.0/da/df5/tutorial_py_sift_intro.html
-    # http://docs.opencv.org/trunk/d5/d3c/classcv_1_1xfeatures2d_1_1SIFT.html
-    (keypoints, descs) = sift.detectAndCompute(orig_gray, None)
-
-    img = orig_gray.copy()
-    img = cv2.drawKeypoints(orig_gray, keypoints, img, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-
-    return {
-        'keypoints': keypoints,
-        'descriptors': descs,
-        'sift': img,
-        'original': orig_gray
-    }

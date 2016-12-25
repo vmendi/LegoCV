@@ -19,6 +19,7 @@ def find_max_contour(img):
     # Extract contours
     contours_img, contours, hierarchy = cv2.findContours(edges_img.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
     max_area_contour_rect = None
+    max_area_bounding_box = None
 
     if len(contours) != 0:
         areas = [cv2.contourArea(contour) for contour in contours]
@@ -41,11 +42,13 @@ def find_max_contour(img):
         for level_idx, level in enumerate(levels):
             cv2.drawContours(contours_img, contours=levels[level_idx], contourIdx= -1, color=level_colors[level_idx], thickness=1)
 
+        max_area_bounding_box = cv2.boundingRect(contours[max_area_index])
         max_area_contour_rect = cv2.minAreaRect(contours[max_area_index])
         box = cv2.boxPoints(max_area_contour_rect)
         cv2.drawContours(contours_img, [np.array(box).astype(int)], 0, (200, 200, 200), thickness=2)
 
     return {'max_area_contour_rect': max_area_contour_rect,
+            'max_area_bounding_box': max_area_bounding_box,
             'threshold': threshold_img,
             'edges': edges_img,
             'contours': contours_img,
