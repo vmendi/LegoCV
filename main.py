@@ -96,13 +96,13 @@ if __name__ == '__main__':
     training_filenames = ['in/controlled_more/' + file for file in listdir('in/controlled_more') if "_00" in file]
     training_filenames = [file for file in training_filenames if isfile(file)]
 
-    # training_filenames = ['in/controlled_more/2016-12-22 23-08-00_00.png',
-    #                       'in/controlled_more/2016-12-22 23-08-30_00.png',
-    #                       'in/controlled_more/2016-12-22 23-08-55_00.png']
+    training_filenames = ['in/controlled_more/2016-12-22 23-08-00_00.png',
+                          'in/controlled_more/2016-12-22 23-08-30_00.png',
+                          'in/controlled_more/2016-12-22 23-08-55_00.png']
 
     query_filenames = ['in/controlled/' + file for file in listdir('in/controlled') if "_00" in file]
     query_filenames = [file for file in query_filenames if isfile(file)]
-    # query_filenames = ['in/controlled/2016-12-21 13-55-27_00.png']
+    query_filenames = ['in/controlled/2016-12-21 13-55-27_00.png']
 
     match_with_sift(training_filenames, query_filenames)
     # iterate_over_images_detection(filenames)

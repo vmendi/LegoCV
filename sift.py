@@ -1,16 +1,15 @@
 import cv2
 import numpy as np
-from os.path import basename
 
 from find_max_contour import find_max_contour
 
 
 def find_sift(orig_gray):
-    # sift = cv2.xfeatures2d.SIFT_create(nfeatures=100, nOctaveLayers=3, contrastThreshold=0.04, edgeThreshold=10,sigma=1.6)
+    # # http://docs.opencv.org/trunk/d5/d3c/classcv_1_1xfeatures2d_1_1SIFT.html
+    # sift = cv2.xfeatures2d.SIFT_create(nfeatures=20, nOctaveLayers=5, contrastThreshold=0.01, edgeThreshold=20,sigma=2)
     sift = cv2.xfeatures2d.SIFT_create()
 
     # http://docs.opencv.org/3.1.0/da/df5/tutorial_py_sift_intro.html
-    # http://docs.opencv.org/trunk/d5/d3c/classcv_1_1xfeatures2d_1_1SIFT.html
     (keypoints, descs) = sift.detectAndCompute(orig_gray, None)
 
     img = orig_gray.copy()
@@ -94,5 +93,7 @@ def match_with_sift(training_set, query_set):
                                          best_match['sift_training']['original'],
                                          best_match['sift_training']['keypoints'],
                                          best_match['good_matches'],
-                                         matches_img)
+                                         outImg=matches_img,
+                                         matchColor=(255, 0, 0),
+                                         flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
         cv2.imwrite("out/{0}-matched.png".format(sift_query_idx), matches_img)
