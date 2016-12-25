@@ -99,41 +99,45 @@ def match_with_sift(training_set, query_set):
     for sift_query_idx, sift_query in enumerate(sift_query_set):
         bfm = cv2.BFMatcher(cv2.NORM_L2) # , crossCheck=True)
 
-        all_trained_match_result = []
+        match_results = []
         for (sift_training_idx, sift_training) in enumerate(sift_training_set):
-            matches = bfm.knnMatch(sift_training['descriptors'], sift_query['descriptors'], k=2)
+            matches = bfm.knnMatch(sift_query['descriptors'], sift_training['descriptors'], k=2)
 
             good_matches = []
-            avg_distance = 0.0
+            query_keypoints = []
+            training_keypoints = []
             for m, n in matches:
                 if m.distance < 0.75*n.distance:
                     good_matches.append([m])
-                    avg_distance += m.distance
+                    query_keypoints.append(sift_query['keypoints'][m.queryIdx].pt)
+                    training_keypoints.append(sift_training['keypoints'][m.trainIdx].pt)
 
-            if len(good_matches):
-                avg_distance /= len(good_matches)
-            else:
-                avg_distance = float('inf')
+            training_keypoints = np.array(training_keypoints)
+            query_keypoints = np.array(query_keypoints)
 
-            all_trained_match_result.append(
+            mask = None
+            if len(training_keypoints) > 0 and len(query_keypoints) > 0:
+                _, mask = cv2.findHomography(srcPoints=training_keypoints, dstPoints=query_keypoints,
+                                             method=cv2.RANSAC, ransacReprojThreshold=5)
+
+            match_results.append(
                 {
                     'sift_training': sift_training,
                     'good_matches': good_matches,
-                    'avg_distance': avg_distance
+                    'mask': mask
                 }
             )
 
-        if len(all_trained_match_result) > 0:
-            all_trained_match_result = sorted(all_trained_match_result, key = lambda x:len(x['good_matches']), reverse=True)
-            #all_trained_match_result = sorted(all_trained_match_result, key = lambda x:x['avg_distance'])
-            sift_training = all_trained_match_result[0]['sift_training']
+        best_match = max(match_results, key=lambda match: np.count_nonzero(match['mask']))
 
-            matches_img = np.zeros((1, 1), np.uint8)
-            matches_img = cv2.drawMatchesKnn(sift_query['original'], sift_query['keypoints'],
-                                             sift_training['original'], sift_training['keypoints'],
-                                             all_trained_match_result[0]['good_matches'],
-                                             matches_img)
-            cv2.imwrite("out/{0}-matched.png".format(sift_query_idx), matches_img)
+        matches_img = np.zeros((1, 1), np.uint8)
+        matches_img = cv2.drawMatchesKnn(sift_query['original'],
+                                         sift_query['keypoints'],
+                                         best_match['sift_training']['original'],
+                                         best_match['sift_training']['keypoints'],
+                                         best_match['good_matches'],
+                                         matches_img)
+        cv2.imwrite("out/{0}-matched.png".format(sift_query_idx), matches_img)
 
 
 def capture():
