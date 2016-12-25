@@ -1,9 +1,6 @@
 import cv2
 import numpy as np
 
-from find_max_contour import find_max_contour
-
-
 def find_sift(orig_gray):
     # # http://docs.opencv.org/trunk/d5/d3c/classcv_1_1xfeatures2d_1_1SIFT.html
     # sift = cv2.xfeatures2d.SIFT_create(nfeatures=20, nOctaveLayers=5, contrastThreshold=0.01, edgeThreshold=20,sigma=2)
@@ -23,27 +20,7 @@ def find_sift(orig_gray):
     }
 
 
-def load_and_prepare_img(src_img_filename):
-    src_img = cv2.imread(src_img_filename)
-    height, width, color_depth = src_img.shape
-    src_img = src_img[100:height-100, 500:width-500]
-    gray = cv2.cvtColor(src_img, cv2.COLOR_BGR2GRAY)
-    return gray
-
-
-def extract_max_contour(src_img_filename):
-    gray = load_and_prepare_img(src_img_filename)
-    contour_result = find_max_contour(gray)
-    rect = contour_result['max_area_bounding_box']
-    clipped_img = gray[rect[1]:rect[1] + rect[3], rect[0]:rect[0] + rect[2]]
-    return clipped_img
-
-
 def match_with_sift(training_set, query_set):
-
-    training_set = [extract_max_contour(img_filename) for img_filename in training_set]
-    query_set = [extract_max_contour(img_filename) for img_filename in query_set]
-
     sift_training_set = [find_sift(img) for img in training_set]
     sift_query_set = [find_sift(img) for img in query_set]
 
