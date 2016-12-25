@@ -22,9 +22,16 @@
 	- Pensar manera de hacer "suelo".
 	- Fijar backlight y la base.
 
-	
+
+- Material menos reflectante para el top de la lightbox
+
 - Hacer fotos de todas esas piezas.
 	- Foto con backlighting.
 	- Foto con top lighting.
 
 .... desarrollar el diferenciador post-peso.
+- Bounding box + circle detector
+- SIFT. Entender como se hace el matching una vez que se tienen kp & desc
+- Hass cascade. Es aplicable?
+- Momentos. Investigar.
+- MSER. Puede devolver incluso el numero de holes.

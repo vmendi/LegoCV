@@ -1,18 +1,21 @@
 import cv2
 import numpy as np
 
-def find_corners(img_idx, img, gray):
-    img = img.copy()
-    gray = np.float32(gray)
-    dst = cv2.cornerHarris(gray, 2, 3, 0.04)
+
+def find_corners(orig_gray):
+    gray = np.float32(orig_gray)
+    dst = cv2.cornerHarris(gray, 3, 7, 0.04)
 
     # Result is dilated for marking the corners, not important
     dst = cv2.dilate(dst, None)
 
     # Threshold for an optimal value, it may vary depending on the image.
-    img[dst > 0.01*dst.max()]= [0, 0, 255]
+    gray[dst > 0.01*dst.max()] = 255
 
-    cv2.imwrite('out/{0}-corners.png'.format(img_idx), img)
+    return {
+        'corners': gray,
+        'original': orig_gray
+    }
 
 
 def find_corners_subpixel(img_idx, img, gray):
@@ -38,3 +41,20 @@ def find_corners_subpixel(img_idx, img, gray):
 
     cv2.imwrite('out/{0}-corners.png'.format(img_idx), img)
 
+
+def find_sift(orig_gray):
+    sift = cv2.xfeatures2d.SIFT_create()
+
+    # http://docs.opencv.org/3.1.0/da/df5/tutorial_py_sift_intro.html
+    # http://docs.opencv.org/trunk/d5/d3c/classcv_1_1xfeatures2d_1_1SIFT.html
+    (keypoints, descs) = sift.detectAndCompute(orig_gray, None)
+
+    img = orig_gray.copy()
+    img = cv2.drawKeypoints(orig_gray, keypoints, img, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+
+    return {
+        'keypoints': keypoints,
+        'descriptors': descs,
+        'sift': img,
+        'original': orig_gray
+    }

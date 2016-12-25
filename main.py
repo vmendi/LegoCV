@@ -6,10 +6,11 @@ import cv2
 import numpy as np
 
 import video
+from find_corners import find_corners, find_sift
 from find_max_contour import find_max_contour
 
 
-def save_to_file(max_contour_result, img_idx):
+def save_to_file_max_contour(max_contour_result, img_idx):
     img_01 = max_contour_result['contours']
     img_02 = max_contour_result['original']
     img_03 = max_contour_result['threshold']
@@ -40,10 +41,14 @@ def iterate_over_images_detection(img_names):
         # NOTE: its img[y: y + h, x: x + w] and *not* img[x: x + w, y: y + h]
 
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        detection_result = find_max_contour(gray)
-        save_to_file(detection_result, img_idx)
-        # find_corners(img_idx, img, gray)
+        max_contour_result = find_max_contour(gray)
+        save_to_file_max_contour(max_contour_result, img_idx)
 
+        corners_result = find_corners(gray)
+        cv2.imwrite('out/{0}-corners.png'.format(img_idx), corners_result['corners'])
+
+        sift_result = find_sift(gray)
+        cv2.imwrite('out/{0}-sift.png'.format(img_idx), sift_result['sift'])
 
 def realtime_detection():
     cap = video.create_capture(1)
@@ -67,6 +72,118 @@ def realtime_detection():
             break
 
 
+def train_sift(training_set):
+    sift_training = []
+    for img_idx, img_name in enumerate(training_set):
+        src_img = cv2.imread(img_name)
+        height, width, color_depth = src_img.shape
+        src_img = src_img[100:height-100, 400:width-400]
+        gray = cv2.cvtColor(src_img, cv2.COLOR_BGR2GRAY)
+        sift_result = find_sift(gray)
+        sift_training.append(sift_result)
+        cv2.imwrite('out/{0}-sift.png'.format(img_idx), sift_result['sift'])
+
+    return sift_training
+
+
+def realtime_match_with_sift(training_set, query_set):
+
+    sift_training = train_sift(training_set)
+
+    for img_idx, img_name in enumerate(query_set):
+        src_img = cv2.imread(img_name)
+
+        height, width, color_depth = src_img.shape
+        src_img = src_img[100:height-100, 400:width-400]
+
+        gray = cv2.cvtColor(src_img, cv2.COLOR_BGR2GRAY)
+        sift_query = find_sift(gray)
+
+        brute_force_matcher = cv2.BFMatcher()   # cv2.NORM_L2, crossCheck=True
+
+        all_trained_match_result = []
+        for (sift_trained_idx, sift_trained) in enumerate(sift_training):
+            matches = brute_force_matcher.knnMatch(sift_trained['descriptors'], sift_query['descriptors'], k=2)
+
+            # http://docs.opencv.org/3.1.0/dc/dc3/tutorial_py_matcher.html
+            good_matches = []
+            for m,n in matches:
+                if m.distance < 0.75*n.distance:
+                    good_matches.append([m])
+
+            all_trained_match_result.append(
+                {
+                    'sift_trained': sift_trained,
+                    'good_matches': good_matches,
+                }
+            )
+
+        if len(all_trained_match_result) > 0:
+            all_trained_match_result = sorted(all_trained_match_result, key = lambda x:len(x['good_matches']), reverse=True)
+            sift_trained = all_trained_match_result[0]['sift_trained']
+
+            matches_img = np.zeros((src_img.shape[0], src_img.shape[1]), np.uint8)
+            matches_img = cv2.drawMatchesKnn(sift_query['original'], sift_query['keypoints'],
+                                             sift_trained['original'], sift_trained['keypoints'],
+                                             all_trained_match_result[0]['good_matches'],
+                                             matches_img)
+            cv2.imwrite("out/{0}-matched.png".format(img_idx), matches_img)
+
+
+    # cap = video.create_capture(0)
+    #
+    # while True:
+    #     flag, captured_img = cap.read()
+    #
+    #     height, width, color_depth = captured_img.shape
+    #     captured_img = captured_img[100:height-100, 400:width-400]
+    #
+    #     cv2.imshow('main_00', cv2.resize(captured_img, (0, 0), fx=0.5, fy=0.5, interpolation=cv2.INTER_CUBIC))
+    #
+    #     ch = cv2.waitKey(1)
+    #     if ch == 27:
+    #         break
+    #
+    #     gray = cv2.cvtColor(captured_img, cv2.COLOR_BGR2GRAY)
+    #
+    #     sift_query = find_sift(gray)
+    #
+    #     if sift_query['descriptors'] is None:
+    #         continue
+    #
+    #     brute_force_matcher = cv2.BFMatcher()
+    #
+    #     all_trained_match_result = []
+    #     for sift_trained in sift_training:
+    #         matches = brute_force_matcher.knnMatch(sift_trained['descriptors'], sift_query['descriptors'], k=2)
+    #
+    #         good_matches = []
+    #         for m,n in matches:
+    #             if m.distance < 0.75*n.distance:
+    #                 good_matches.append([m])
+    #
+    #         all_trained_match_result.append(
+    #             {
+    #                 'sift_trained': sift_trained,
+    #                 'good_matches': good_matches,
+    #             }
+    #         )
+    #
+    #     if len(all_trained_match_result) > 0:
+    #         all_trained_match_result = sorted(all_trained_match_result, key = lambda x:len(x['good_matches']), reverse=True)
+    #         sift_trained = all_trained_match_result[0]['sift_trained']
+    #         good_matches = all_trained_match_result[0]['good_matches']
+    #
+    #         if len(good_matches) > 5:
+    #             matches_img = captured_img.copy()
+    #             matches_img = cv2.drawMatchesKnn(sift_trained['original'], sift_trained['keypoints'],
+    #                                              sift_query['original'], sift_query['keypoints'],
+    #                                              good_matches,
+    #                                              matches_img)
+    #             cv2.imshow('main_01', cv2.resize(matches_img, (0, 0), fx=0.5, fy=0.5, interpolation=cv2.INTER_CUBIC))
+
+
+
 def capture():
     cap_cam00 = video.create_capture(1)
     cap_cam01 = video.create_capture(2)
@@ -78,7 +195,7 @@ def capture():
         if captured_img_00 is None or captured_img_01 is None:
             continue
 
-        cv2.imshow('main_00', cv2.resize(captured_img_00, (0, 0), fx=0.5, fy=0.5, interpolation=cv2.INTER_CUBIC))
+        cv2.imshow('main_00', captured_img_00)
         cv2.imshow('main_01', cv2.resize(captured_img_01, (0, 0), fx=0.5, fy=0.5, interpolation=cv2.INTER_CUBIC))
 
         ch = cv2.waitKey(1)
@@ -88,10 +205,18 @@ def capture():
 
 
 if __name__ == '__main__':
-    filenames = ['in/controlled/' + file for file in listdir('in/controlled') if "_00" in file]
-    filenames = [file for file in filenames if isfile(file)]
+    training_filenames = ['in/controlled_more/' + file for file in listdir('in/controlled_more') if "_00" in file]
+    training_filenames = [file for file in training_filenames if isfile(file)]
 
-    iterate_over_images_detection(filenames)
+    training_filenames = ['in/controlled_more/2016-12-22 23-08-00_00.png',
+                          'in/controlled_more/2016-12-22 23-08-30_00.png']
+
+    query_filenames = ['in/controlled/' + file for file in listdir('in/controlled') if "_00" in file]
+    query_filenames = [file for file in query_filenames if isfile(file)]
+    query_filenames = ['in/controlled/2016-12-21 13-55-27_00.png']
+
+    realtime_match_with_sift(training_filenames, query_filenames)
+    # iterate_over_images_detection(filenames)
     # realtime_detection()
     # capture()
 
