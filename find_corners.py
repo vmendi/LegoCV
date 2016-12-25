@@ -43,6 +43,7 @@ def find_corners_subpixel(img_idx, img, gray):
 
 
 def find_sift(orig_gray):
+    # sift = cv2.xfeatures2d.SIFT_create(nfeatures=100, nOctaveLayers=3, contrastThreshold=0.04, edgeThreshold=10,sigma=1.6)
     sift = cv2.xfeatures2d.SIFT_create()
 
     # http://docs.opencv.org/3.1.0/da/df5/tutorial_py_sift_intro.html
