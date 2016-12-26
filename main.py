@@ -122,12 +122,12 @@ def image_moments_detection(training_set_filenames, query_set_filenames):
                     min_match_coeff = match_coeff
                     best_match = training
 
-        cv2.imwrite('out/{0}-query.png'.format(query_idx), query['original'])
-        # cv2.imwrite('out/{0}-query-contours.png'.format(query_idx), query['contours'])
+        cv2.imwrite('out/{query_idx}-query.png', query['original'])
+        # cv2.imwrite('out/{query_idx}-query-contours.png', query['contours'])
 
         if best_match:
-            cv2.imwrite('out/{0}-best_match.png'.format(query_idx), best_match['original'])
-            # cv2.imwrite('out/{0}-best-match-contours.png'.format(query_idx), best_match['contours'])
+            cv2.imwrite('out/{query_idx}-best_match.png', best_match['original'])
+            # cv2.imwrite('out/{query_idx}-best-match-contours.png', best_match['contours'])
 
 
 def are_rotated_rects_within_threshold(query_rect, training_rect, percentage_threshold):
