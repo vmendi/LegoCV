@@ -2,8 +2,8 @@ import cv2
 import numpy as np
 
 
-def find_max_contour(img):
-    ret, threshold_img = cv2.threshold(img, thresh=215, maxval=255, type=cv2.THRESH_BINARY_INV)
+def find_max_contour(res):
+    ret, threshold_img = cv2.threshold(res['grey_img'], thresh=210, maxval=255, type=cv2.THRESH_BINARY_INV)
 
     # Gausian removes small edges during Canny
     # threshold_img = cv2.GaussianBlur(threshold_img, (11, 11), 0)
@@ -52,14 +52,15 @@ def find_max_contour(img):
         box = cv2.boxPoints(contour_rect)
         cv2.drawContours(contours_img, [np.array(box).astype(int)], 0, (200, 200, 200), thickness=2)
 
-    return {'max_contour': max_contour,
-            'all_contours': contours,
-            'contour_rect': contour_rect,
-            'bounding_box': bounding_box,
-            'threshold_img': threshold_img,
-            'edges_img': edges_img,
-            'contours_img': contours_img,
-            'original_img': img}
+    res['max_contour'] = max_contour
+    res['all_contours'] = contours
+    res['contour_rect'] = contour_rect
+    res['bounding_box'] = bounding_box
+    res['threshold_img'] = threshold_img
+    res['edges_img'] = edges_img
+    res['contours_img'] = contours_img
+
+    return res
 
 
 def find_moments(res, img_key, binary_image):
@@ -81,11 +82,39 @@ def clip_img(res, img_key):
     return res
 
 
-def save_to_file_max_contour(max_contour_result, img_idx):
-    img_01 = max_contour_result['contours_img']
-    img_02 = max_contour_result['original_img']
-    img_03 = max_contour_result['threshold_img']
-    img_04 = max_contour_result['edges_img']
+def align_and_clip(res, img_key):
+    img = res[img_key]
+    width,height = img.shape
+
+    rect_width = res['contour_rect'][1][0]
+    rect_height = res['contour_rect'][1][1]
+    angle = res['contour_rect'][2]
+
+    rot_center_x = res['contour_rect'][0][0]
+    rot_center_y = res['contour_rect'][0][1]
+
+    M = cv2.getRotationMatrix2D((rot_center_x, rot_center_y), angle, 1)
+    img = cv2.warpAffine(img, M, (width, height))
+
+    topleft_x = rot_center_x - (rect_width*0.5)
+    topleft_y = rot_center_y - (rect_height*0.5)
+
+    res['clipped_img'] = img[int(topleft_y):int(topleft_y+rect_height),
+                             int(topleft_x):int(topleft_x+rect_width)]
+
+    # _, res['clipped_threshold_img'] = cv2.threshold(res['clipped_img'], thresh=180, maxval=255,
+    #                                                 type=cv2.THRESH_BINARY_INV)
+    otsu_threshold, res['clipped_threshold_img'] = cv2.threshold(res['clipped_img'], thresh=0, maxval=255,
+                                                                 type=cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+
+    return res
+
+
+def save_to_file_max_contour(res, img_idx):
+    img_01 = res['contours_img']
+    img_02 = res['grey_img']
+    img_03 = res['threshold_img']
+    img_04 = res['edges_img']
 
     combined = np.zeros((img_01.shape[0] + img_03.shape[0], img_01.shape[1] + img_02.shape[1]), np.uint8)
     combined[:img_01.shape[0], :img_01.shape[1]] = img_01
@@ -93,7 +122,7 @@ def save_to_file_max_contour(max_contour_result, img_idx):
     combined[img_01.shape[0]:img_01.shape[0] + img_03.shape[0], :img_03.shape[1]] = img_03
     combined[img_01.shape[0]:img_01.shape[0] + img_04.shape[0], img_01.shape[1]:img_01.shape[1] + img_04.shape[1]] = img_04
 
-    rect = max_contour_result['contour_rect']
+    rect = res['contour_rect']
     rect_text = "Bounding rect ({0:.0f},{1:.0f}), angle {2:.0f}".format(rect[1][0], rect[1][1], rect[2])
 
     cv2.putText(combined, rect_text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1, cv2.LINE_AA)

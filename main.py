@@ -7,7 +7,7 @@ import numpy as np
 
 import video
 from find_corners import find_corners
-from find_max_contour import find_max_contour, save_to_file_max_contour, clip_img, find_moments
+from find_max_contour import find_max_contour, save_to_file_max_contour, clip_img, find_moments, align_and_clip
 from sift import match_with_sift, find_sift
 
 
@@ -15,21 +15,26 @@ def load_and_prepare_img(src_img_filename):
     src_img = cv2.imread(src_img_filename)
     height, width, color_depth = src_img.shape
     src_img = src_img[100:height-100, 500:width-500]
-    gray = cv2.cvtColor(src_img, cv2.COLOR_BGR2GRAY)
-    return gray
+    grey = cv2.cvtColor(src_img, cv2.COLOR_BGR2GRAY)
+    return {
+        'original_img': src_img,
+        'grey_img': grey,
+        'filename': src_img_filename
+    }
 
 
 def iterate_over_images_detection(img_names):
     for img_idx, img_name in enumerate(img_names):
-        gray = load_and_prepare_img(img_name)
-        max_contour_result = find_max_contour(gray)
-        save_to_file_max_contour(max_contour_result, img_idx)
+        res = load_and_prepare_img(img_name)
+        res = find_max_contour(res)
+        save_to_file_max_contour(res, img_idx)
 
-        corners_result = find_corners(gray)
+        corners_result = find_corners(res)
         cv2.imwrite('out/{0}-corners.png'.format(img_idx), corners_result['corners'])
 
-        sift_result = find_sift(gray)
+        sift_result = find_sift(res)
         cv2.imwrite('out/{0}-sift.png'.format(img_idx), sift_result['sift'])
+
 
 def realtime_detection():
     cap = video.create_capture(1)
@@ -51,6 +56,7 @@ def realtime_detection():
         ch = cv2.waitKey(1)
         if ch == 27:
             break
+
 
 def capture():
     cap_cam00 = video.create_capture(1)
@@ -76,8 +82,8 @@ def iterate_sift(training_set, query_set):
     training_set = [load_and_prepare_img(img_filename) for img_filename in training_set]
     query_set = [load_and_prepare_img(img_filename) for img_filename in query_set]
 
-    training_set = [find_max_contour(img) for img in training_set]
-    query_set = [find_max_contour(img) for img in query_set]
+    training_set = [find_max_contour(res) for res in training_set]
+    query_set = [find_max_contour(res) for res in query_set]
 
     training_set = [clip_img(res, 'original_img') for res in training_set]
     query_set = [clip_img(res, 'original_img') for res in query_set]
@@ -89,68 +95,89 @@ def image_moments_detection(training_set_filenames, query_set_filenames):
     training_set = [load_and_prepare_img(filename) for filename in training_set_filenames]
     query_set = [load_and_prepare_img(filename) for filename in query_set_filenames]
 
-    training_set = [find_max_contour(img) for img in training_set]
-    query_set = [find_max_contour(img) for img in query_set]
+    training_set = [find_max_contour(res) for res in training_set]
+    query_set = [find_max_contour(res) for res in query_set]
 
-    training_set = [clip_img(res, 'threshold_img') for res in training_set]
-    query_set = [clip_img(res, 'threshold_img') for res in query_set]
+    training_set = [align_and_clip(res, 'grey_img') for res in training_set]
+    query_set = [align_and_clip(res, 'grey_img') for res in query_set]
 
-    training_set = [find_moments(res, 'max_contour', binary_image=False) for res in training_set]
-    query_set = [find_moments(res, 'max_contour', binary_image=False) for res in query_set]
+    training_set = [find_moments(res, 'clipped_threshold_img', binary_image=True) for res in training_set]
+    query_set = [find_moments(res, 'clipped_threshold_img', binary_image=True) for res in query_set]
 
     for query_idx, query in enumerate(query_set):
-        best_match = None
-        best_coeff = 1000000
 
-        query_moments = query['hu_moments']
-        print(f"Query HuMoments: {query_moments}")
+        print(f"Query moments:\n{query['hu_moments']}")
 
-        for training in training_set:
-            #match_coeff = cv2.matchShapes(training['clipped_img'], query['clipped_img'], method=1, parameter=0.0)
-            match_coeff = cv2.matchShapes(training['max_contour'], query['max_contour'], method=1, parameter=0.0)
-            # w_ratio, h_ratio = get_dimensions_ratio(training['contour_rect'], query['countour_rect'])
-            training_moments = training['hu_moments']
-            print(f"Training HuMoments: {training_moments}")
-            print(f"MatchCoeff: {match_coeff}")
+        filtered_training_set = filter_by_dimensions(query, training_set)
+        #filtered_training_set = sort_by_area_moment(query, filtered_training_set)
 
-            if match_coeff < best_coeff:
-                best_coeff = match_coeff
-                best_match = training
+        filtered_training_set = sort_by_match_shapes(query, filtered_training_set, 'clipped_threshold_img')
 
         cv2.imwrite(f'out/{query_idx}-query.png', query['original_img'])
-        cv2.imwrite(f'out/{query_idx}-query-clipped.png', query['clipped_img'])
+        cv2.imwrite(f'out/{query_idx}-query-clipped.png', query['clipped_threshold_img'])
 
-        if best_match:
+        if len(filtered_training_set) >= 1:
+            best_match = filtered_training_set[0]
+            print(f"Best match moments:\n{best_match['hu_moments']}")
             cv2.imwrite(f'out/{query_idx}-best_match.png', best_match['original_img'])
-            cv2.imwrite(f'out/{query_idx}-best-match-clipped.png', best_match['clipped_img'])
+            cv2.imwrite(f'out/{query_idx}-best-match-clipped.png', best_match['clipped_threshold_img'])
+
+
+def sort_by_area_moment(query, tranining_set):
+    def sorter_func(a):
+        return np.math.pow(query['moments']['m00'] - a['moments']['m00'], 2)
+
+    return sorted(tranining_set, key=sorter_func)
+
+
+def sort_by_match_shapes(query, training_set, img_key):
+    def sorter_func(a):
+        match_coeff = cv2.matchShapes(a[img_key], query[img_key], method=1, parameter=0.0)
+        print(f"MatchCoeff: {match_coeff}")
+        return match_coeff
+
+    return sorted(training_set, key=sorter_func)
+
+
+def filter_by_dimensions(query, training_set):
+    filtered = []
+    for training in training_set:
+        w_ratio, h_ratio = get_dimensions_ratio(training['contour_rect'], query['contour_rect'])
+
+        if w_ratio < 1.1 and h_ratio < 1.1:
+            filtered.append(training)
+
+    return filtered
 
 
 def get_dimensions_ratio(training_rect, query_rect):
+    def abs_ratio(a, b):
+        return a / b if a > b else b / a
+
     query_width_rect = max(query_rect[1][0], query_rect[1][1])
     query_height_rect = min(query_rect[1][0], query_rect[1][1])
 
     training_width_rect = max(training_rect[1][0], training_rect[1][1])
     training_height_rect = min(training_rect[1][0], training_rect[1][1])
 
-    return query_width_rect/training_width_rect, query_height_rect/training_height_rect
+    return abs_ratio(query_width_rect, training_width_rect), abs_ratio(query_height_rect, training_height_rect)
 
 if __name__ == '__main__':
     training_filenames = ['in/controlled_more/' + file for file in listdir('in/controlled_more') if "_00" in file]
     training_filenames = [file for file in training_filenames if isfile(file)]
 
-    training_filenames = [
-                          'in/controlled_more/2016-12-22 23-10-06_00.png',
-                          'in/controlled_more/2016-12-22 23-09-55_00.png'
-                          # 'in/controlled_more/2016-12-22 23-08-00_00.png',
-                          # 'in/controlled_more/2016-12-22 23-08-30_00.png',
-                          # 'in/controlled_more/2016-12-22 23-08-55_00.png',
-                          # 'in/controlled_more/2016-12-22 23-12-10_00.png
-                          ]
-
+    # training_filenames = [
+    #                       # 'in/controlled_more/2016-12-22 23-10-06_00.png',
+    #                       # 'in/controlled_more/2016-12-22 23-10-37_00.png',
+    #                       # 'in/controlled_more/2016-12-22 23-08-55_00.png',
+    #                       #'in/controlled_more/2016-12-22 23-10-37_00.png',
+    #                       'in/controlled_more/2016-12-22 23-08-00_00.png',
+    #                       ]
     query_filenames = ['in/controlled/' + file for file in listdir('in/controlled') if "_00" in file]
     query_filenames = [file for file in query_filenames if isfile(file)]
-    # query_filenames = ['in/controlled/2016-12-21 13-55-27_00.png']
-    query_filenames = ['in/uncontrolled/2016-12-21 12-51-37_00.png']
+    #query_filenames = ['in/controlled/2016-12-21 13-58-28_00.png']
+    #query_filenames = ['in/controlled/2016-12-21 13-55-27_00.png']
+
 
     # iterate_sift(training_filenames, query_filenames)
     # iterate_over_images_detection(training_filenames)
