@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 
 import video
+from calibration import calibrate
 from find_corners import find_corners
 from find_max_contour import find_max_contour, save_to_file_max_contour, clip_img, find_moments, align_and_clip
 from sift import match_with_sift, find_sift
@@ -183,6 +184,7 @@ if __name__ == '__main__':
     # iterate_over_images_detection(training_filenames)
     # realtime_detection()
     # capture()
-    image_moments_detection(training_filenames, query_filenames)
+    # image_moments_detection(training_filenames, query_filenames)
+    calibrate()
 
 cv2.destroyAllWindows()
