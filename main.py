@@ -1,3 +1,4 @@
+import glob
 from os import listdir
 from os.path import isfile
 from time import strftime
@@ -6,7 +7,7 @@ import cv2
 import numpy as np
 
 import video
-from calibration import calibrate
+from calibration import calibrate, load_calibration, undistort_images, undistort_image
 from find_corners import find_corners
 from find_max_contour import find_max_contour, save_to_file_max_contour, clip_img, find_moments, align_and_clip
 from sift import match_with_sift, find_sift
@@ -14,9 +15,15 @@ from sift import match_with_sift, find_sift
 
 def load_and_prepare_img(src_img_filename):
     src_img = cv2.imread(src_img_filename)
-    height, width, color_depth = src_img.shape
-    src_img = src_img[100:height-100, 500:width-500]
-    grey = cv2.cvtColor(src_img, cv2.COLOR_BGR2GRAY)
+
+    camera_matrix, dist_coefs = load_calibration()
+    undistorted = undistort_image(camera_matrix, dist_coefs, src_img)
+
+    height, width, color_depth = undistorted.shape
+    clipped = undistorted[10:height-10, 100:width-100]
+
+    grey = cv2.cvtColor(clipped, cv2.COLOR_BGR2GRAY)
+
     return {
         'original_img': src_img,
         'grey_img': grey,
@@ -112,15 +119,15 @@ def image_moments_detection(training_set_filenames, query_set_filenames):
         filtered_training_set = filter_by_dimensions(query, training_set)
         #filtered_training_set = sort_by_area_moment(query, filtered_training_set)
 
-        filtered_training_set = sort_by_match_shapes(query, filtered_training_set, 'clipped_threshold_img')
+        sorted_by_match_shapes = sort_by_match_shapes(query, filtered_training_set, 'clipped_threshold_img')
 
-        cv2.imwrite(f'out/{query_idx}-query.png', query['original_img'])
+        cv2.imwrite(f'out/{query_idx}-query.png', query['grey_img'])
         cv2.imwrite(f'out/{query_idx}-query-clipped.png', query['clipped_threshold_img'])
 
-        if len(filtered_training_set) >= 1:
-            best_match = filtered_training_set[0]
+        if len(sorted_by_match_shapes) >= 1:
+            best_match = sorted_by_match_shapes[0]
             print(f"Best match moments:\n{best_match['hu_moments']}")
-            cv2.imwrite(f'out/{query_idx}-best_match.png', best_match['original_img'])
+            cv2.imwrite(f'out/{query_idx}-best_match.png', best_match['grey_img'])
             cv2.imwrite(f'out/{query_idx}-best-match-clipped.png', best_match['clipped_threshold_img'])
 
 
@@ -134,7 +141,7 @@ def sort_by_area_moment(query, tranining_set):
 def sort_by_match_shapes(query, training_set, img_key):
     def sorter_func(a):
         match_coeff = cv2.matchShapes(a[img_key], query[img_key], method=1, parameter=0.0)
-        print(f"MatchCoeff: {match_coeff}")
+        print(f"MatchCoeff for {a['filename']}: {match_coeff}")
         return match_coeff
 
     return sorted(training_set, key=sorter_func)
@@ -164,27 +171,29 @@ def get_dimensions_ratio(training_rect, query_rect):
     return abs_ratio(query_width_rect, training_width_rect), abs_ratio(query_height_rect, training_height_rect)
 
 if __name__ == '__main__':
-    training_filenames = ['in/controlled_more/' + file for file in listdir('in/controlled_more') if "_00" in file]
+    training_filenames = ['in/control/' + file for file in listdir('in/control')]
     training_filenames = [file for file in training_filenames if isfile(file)]
 
     # training_filenames = [
-    #                       # 'in/controlled_more/2016-12-22 23-10-06_00.png',
-    #                       # 'in/controlled_more/2016-12-22 23-10-37_00.png',
-    #                       # 'in/controlled_more/2016-12-22 23-08-55_00.png',
-    #                       #'in/controlled_more/2016-12-22 23-10-37_00.png',
-    #                       'in/controlled_more/2016-12-22 23-08-00_00.png',
+    #                       'in/control/00.bmp',
     #                       ]
-    query_filenames = ['in/controlled/' + file for file in listdir('in/controlled') if "_00" in file]
-    query_filenames = [file for file in query_filenames if isfile(file)]
-    #query_filenames = ['in/controlled/2016-12-21 13-58-28_00.png']
-    #query_filenames = ['in/controlled/2016-12-21 13-55-27_00.png']
+
+
+    # query_filenames = ['in/trial/' + file for file in listdir('in/trial')]
+    # query_filenames = [file for file in query_filenames if isfile(file)]
+    query_filenames = [
+                        'in/trial/03.bmp'
+                      ]
 
 
     # iterate_sift(training_filenames, query_filenames)
     # iterate_over_images_detection(training_filenames)
     # realtime_detection()
     # capture()
-    # image_moments_detection(training_filenames, query_filenames)
-    calibrate()
+    image_moments_detection(training_filenames, query_filenames)
+    # calibrate()
+
+    # camera_matrix, dist_coefs = load_calibration()
+    # undistort_images(camera_matrix, dist_coefs, glob.glob('in/trial/*.bmp'))
 
 cv2.destroyAllWindows()

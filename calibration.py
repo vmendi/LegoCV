@@ -62,10 +62,11 @@ def load_calibration():
     camera_matrix = npzfile['arr_0']
     dist_coefs = npzfile['arr_1']
 
-    print("camera matrix:\n", camera_matrix)
-    print("distortion coefficients: ", dist_coefs.ravel())
+    # print("camera matrix:\n", camera_matrix)
+    # print("distortion coefficients: ", dist_coefs.ravel())
 
     return camera_matrix, dist_coefs
+
 
 def undistort_images(camera_matrix, dist_coefs, img_names_undistort):
 
@@ -86,6 +87,18 @@ def undistort_images(camera_matrix, dist_coefs, img_names_undistort):
         outfile = f'out/calibration/{only_file_name}_undistorted.png'
         print('Undistorted image written to: %s' % outfile)
         cv2.imwrite(outfile, dst)
+
+
+def undistort_image(camera_matrix, dist_coefs, img):
+    h, w = img.shape[:2]
+    newcameramtx, roi = cv2.getOptimalNewCameraMatrix(camera_matrix, dist_coefs, (w, h), 1, (w, h))
+
+    dst = cv2.undistort(img, camera_matrix, dist_coefs, None, newcameramtx)
+
+    x, y, w, h = roi
+    dst = dst[y:y + h, x:x + w]
+
+    return dst
 
 
 # RMS is already the reprojection error (sigh, we reinvented the wheel)
