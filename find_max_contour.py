@@ -2,6 +2,14 @@ import cv2
 import numpy as np
 
 
+def find_edges(res, img_key):
+    img = res[img_key]
+    edges_img = cv2.Canny(img, threshold1=50, threshold2=200, apertureSize=3, L2gradient=True)
+    res['edges_img'] = edges_img
+
+    return res
+
+
 def find_max_contour(res):
     ret, threshold_img = cv2.threshold(res['grey_img'], thresh=210, maxval=255, type=cv2.THRESH_BINARY_INV)
 
@@ -57,7 +65,7 @@ def find_max_contour(res):
     res['contour_rect'] = contour_rect
     res['bounding_box'] = bounding_box
     res['threshold_img'] = threshold_img
-    res['edges_img'] = edges_img
+    res['edges_threshold_img'] = edges_img
     res['contours_img'] = contours_img
 
     return res
@@ -99,8 +107,8 @@ def align_and_clip(res, img_key):
     topleft_x = rot_center_x - (rect_width*0.5)
     topleft_y = rot_center_y - (rect_height*0.5)
 
-    res['clipped_img'] = img[int(topleft_y):int(topleft_y+rect_height),
-                             int(topleft_x):int(topleft_x+rect_width)]
+    res['clipped_img'] = img[int(topleft_y):int(topleft_y+rect_height+2),
+                             int(topleft_x):int(topleft_x+rect_width+2)]
 
     # _, res['clipped_threshold_img'] = cv2.threshold(res['clipped_img'], thresh=180, maxval=255,
     #                                                 type=cv2.THRESH_BINARY_INV)
@@ -108,25 +116,3 @@ def align_and_clip(res, img_key):
                                                                  type=cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
 
     return res
-
-
-def save_to_file_max_contour(res, img_idx):
-    img_01 = res['contours_img']
-    img_02 = res['grey_img']
-    img_03 = res['threshold_img']
-    img_04 = res['edges_img']
-
-    combined = np.zeros((img_01.shape[0] + img_03.shape[0], img_01.shape[1] + img_02.shape[1]), np.uint8)
-    combined[:img_01.shape[0], :img_01.shape[1]] = img_01
-    combined[:img_02.shape[0], img_01.shape[1]:img_01.shape[1] + img_02.shape[1]] = img_02
-    combined[img_01.shape[0]:img_01.shape[0] + img_03.shape[0], :img_03.shape[1]] = img_03
-    combined[img_01.shape[0]:img_01.shape[0] + img_04.shape[0], img_01.shape[1]:img_01.shape[1] + img_04.shape[1]] = img_04
-
-    rect = res['contour_rect']
-    rect_text = "Bounding rect ({0:.0f},{1:.0f}), angle {2:.0f}".format(rect[1][0], rect[1][1], rect[2])
-
-    cv2.putText(combined, rect_text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1, cv2.LINE_AA)
-
-    cv2.imwrite('out/{0}-combined.png'.format(img_idx), combined)
-
-    print("Image {0} {1}".format(img_idx, rect_text))
