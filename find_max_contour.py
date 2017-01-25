@@ -112,7 +112,7 @@ def align_and_clip(res, img_key):
 
     # _, res['clipped_threshold_img'] = cv2.threshold(res['clipped_img'], thresh=180, maxval=255,
     #                                                 type=cv2.THRESH_BINARY_INV)
-    otsu_threshold, res['clipped_threshold_img'] = cv2.threshold(res['clipped_img'], thresh=0, maxval=255,
-                                                                 type=cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+    # otsu_threshold, res['clipped_threshold_img'] = cv2.threshold(res['clipped_img'], thresh=0, maxval=255,
+    #                                                              type=cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
 
     return res

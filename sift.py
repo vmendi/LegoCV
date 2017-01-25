@@ -1,34 +1,34 @@
 import cv2
 import numpy as np
 
-def find_sift(orig_gray):
-    # # http://docs.opencv.org/trunk/d5/d3c/classcv_1_1xfeatures2d_1_1SIFT.html
+
+def find_sift(res, img_key):
+    img = res[img_key]
+
+    # http://docs.opencv.org/trunk/d5/d3c/classcv_1_1xfeatures2d_1_1SIFT.html
     # sift = cv2.xfeatures2d.SIFT_create(nfeatures=20, nOctaveLayers=5, contrastThreshold=0.01, edgeThreshold=20,sigma=2)
     sift = cv2.xfeatures2d.SIFT_create()
 
     # http://docs.opencv.org/3.1.0/da/df5/tutorial_py_sift_intro.html
-    (keypoints, descs) = sift.detectAndCompute(orig_gray, None)
+    (keypoints, descs) = sift.detectAndCompute(img, None)
 
-    img = orig_gray.copy()
-    img = cv2.drawKeypoints(orig_gray, keypoints, img, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+    img = img.copy()
+    img = cv2.drawKeypoints(img, keypoints, img, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
-    return {
-        'keypoints': keypoints,
-        'descriptors': descs,
-        'sift': img,
-        'original': orig_gray
-    }
+    res['keypoints'] = keypoints
+    res['descriptors'] = descs
+    res['sift_img'] = img
 
 
 def match_with_sift(training_set, query_set):
-    sift_training_set = [find_sift(img) for img in training_set]
-    sift_query_set = [find_sift(img) for img in query_set]
+    sift_training_set = [find_sift(res, 'grey_img') for res in training_set]
+    sift_query_set = [find_sift(res, 'grey_img') for res in query_set]
 
     for img_idx, sift_result in enumerate(sift_training_set):
-        cv2.imwrite('out/{0}-sift-trained.png'.format(img_idx), sift_result['sift'])
+        cv2.imwrite('out/{0}-sift-trained.png'.format(img_idx), sift_result['sift_img'])
 
     for img_idx, sift_result in enumerate(sift_query_set):
-        cv2.imwrite('out/{0}-sift-queried.png'.format(img_idx), sift_result['sift'])
+        cv2.imwrite('out/{0}-sift-queried.png'.format(img_idx), sift_result['sift_img'])
 
     for sift_query_idx, sift_query in enumerate(sift_query_set):
         bfm = cv2.BFMatcher(cv2.NORM_L2) # , crossCheck=True)

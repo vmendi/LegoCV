@@ -2,20 +2,18 @@ import cv2
 import numpy as np
 
 
-def find_corners(orig_gray):
-    gray = np.float32(orig_gray)
+def find_corners(res, img_key):
+    orig = res[img_key]
+    gray = np.float32(orig)
     dst = cv2.cornerHarris(gray, 3, 7, 0.04)
 
     # Result is dilated for marking the corners, not important
     dst = cv2.dilate(dst, None)
 
     # Threshold for an optimal value, it may vary depending on the image.
-    gray[dst > 0.01*dst.max()] = 255
+    gray[dst > 0.01*dst.max()] = 0
 
-    return {
-        'corners': gray,
-        'original': orig_gray
-    }
+    res['corners_img'] = gray
 
 
 def find_corners_subpixel(img_idx, img, gray):

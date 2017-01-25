@@ -31,17 +31,18 @@ def load_and_prepare_img(src_img_filename):
     }
 
 
-def iterate_over_images_detection(img_names):
+def iterate_over_images_quick_test(img_names):
     for img_idx, img_name in enumerate(img_names):
         res = load_and_prepare_img(img_name)
-        res = find_max_contour(res)
-        save_to_file(res, img_idx)
 
-        corners_result = find_corners(res)
-        cv2.imwrite('out/{0}-corners.png'.format(img_idx), corners_result['corners'])
+        find_max_contour(res)
+        align_and_clip(res, 'grey_img')
 
-        sift_result = find_sift(res)
-        cv2.imwrite('out/{0}-sift.png'.format(img_idx), sift_result['sift'])
+        find_corners(res, 'clipped_img')
+        cv2.imwrite('out/{0}-corners.png'.format(img_idx), res['corners_img'])
+
+        find_sift(res, 'clipped_img')
+        cv2.imwrite('out/{0}-sift.png'.format(img_idx), res['sift_img'])
 
 
 def realtime_detection():
@@ -220,12 +221,12 @@ if __name__ == '__main__':
     query_filenames = ['in/trial/' + file for file in listdir('in/trial')]
     query_filenames = [file for file in query_filenames if isfile(file)]
     # query_filenames = [
-    #                     'in/trial/05.bmp'
+    #                     'in/trial/00.bmp'
     #                   ]
 
 
     # iterate_sift(training_filenames, query_filenames)
-    # iterate_over_images_detection(training_filenames)
+    iterate_over_images_quick_test(training_filenames)
     # realtime_detection()
     # capture()
     # image_moments_detection(training_filenames, query_filenames)
