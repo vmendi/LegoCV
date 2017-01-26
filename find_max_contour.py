@@ -4,6 +4,16 @@ import numpy as np
 
 def find_edges(res, img_key):
     img = res[img_key]
+
+    # Gausian removes small edges during Canny
+    # img = cv2.GaussianBlur(img, (3, 3), 0)
+    # threshold_img = cv2.bilateralFilter(threshold_img.copy(), dst=threshold_img, d=3, sigmaColor=250, sigmaSpace=250)
+    # threshold_img = cv2.erode(threshold_img.copy(), kernel=np.ones((1,1), np.uint8), iterations=2)
+    # threshold_img = cv2.morphologyEx(threshold_img.copy(), cv2.MORPH_OPEN, np.ones((5,5), np.uint8))
+
+    # 0, 250, 3, False goes well with the Gaus filter
+    # edges_img = cv2.Canny(img, threshold1=0, threshold2=250, apertureSize=3, L2gradient=False)
+
     edges_img = cv2.Canny(img, threshold1=50, threshold2=200, apertureSize=3, L2gradient=True)
     res['edges_img'] = edges_img
 
@@ -12,12 +22,6 @@ def find_edges(res, img_key):
 
 def find_max_contour(res):
     ret, threshold_img = cv2.threshold(res['grey_img'], thresh=210, maxval=255, type=cv2.THRESH_BINARY_INV)
-
-    # Gausian removes small edges during Canny
-    # threshold_img = cv2.GaussianBlur(threshold_img, (11, 11), 0)
-    # threshold_img = cv2.bilateralFilter(threshold_img.copy(), dst=threshold_img, d=3, sigmaColor=250, sigmaSpace=250)
-    # threshold_img = cv2.erode(threshold_img.copy(), kernel=np.ones((1,1), np.uint8), iterations=2)
-    # threshold_img = cv2.morphologyEx(threshold_img.copy(), cv2.MORPH_OPEN, np.ones((5,5), np.uint8))
 
     edges_img = cv2.Canny(threshold_img, threshold1=100, threshold2=255, apertureSize=3)
 
@@ -114,5 +118,14 @@ def align_and_clip(res, img_key):
     #                                                 type=cv2.THRESH_BINARY_INV)
     # otsu_threshold, res['clipped_threshold_img'] = cv2.threshold(res['clipped_img'], thresh=0, maxval=255,
     #                                                              type=cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+
+    return res
+
+
+def ensure_max_width(res, img_key):
+    img = res[img_key]
+
+    if img.shape[0] > img.shape[1]:
+        res[img_key] = cv2.transpose(img)
 
     return res

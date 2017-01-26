@@ -38,3 +38,28 @@
 	- Los contours internos pueden ser importantes porque descubren formas de agujeros.
 - MSER. Puede devolver incluso el numero de holes.
 - Fourier descriptors
+
+Feature vector:
+Width | Height | Number of holes | Diff in number of holes | Number of lines | Diff in number of lines
+| Hu Moment 01 ... N | Similarity to other 01 ... N
+
+- Write an ad-hoc decision tree
+- edges en similarity es solo una imagen de la silueta externa (contraste contra el fondo)
+- Obtener de los edges externos el numero de circulos (Number of external holes)
+- Obtener otros edges internos a la pieza para hacer numero de circulos (number of internal holes)
+- Curvature of external edges could be interesting.
+
+
+De http://scikit-image.org/docs/dev/api/skimage.feature.html:
+- match_template usa FFT convolution para encontrar la template. Probar.
+- skimage.feature.greycomatrix(image, ...[, ...])	Calculate the grey-level co-occurrence matrix.
+  skimage.feature.greycoprops(P[, prop])	Calculate texture properties of a GLCM.
+  (Probar como alternativa a Local Binary Patterns)
+
+De http://scikit-image.org/docs/dev/api/skimage.measure.html
+- compare_ssim
+    KK. Solo sirve para medir la diferencia entre una imagen fuente y otra comprimida (calidad de broadcast...)
+
+
+
+

@@ -1,4 +1,50 @@
 import cv2
+import time
+
+from find_max_contour import find_max_contour
+
+
+def realtime_detection_quick_structure():
+    cap = create_capture(1)
+
+    while True:
+        flag, captured_img = cap.read()
+
+        height, width, color_depth = captured_img.shape
+        captured_img = captured_img[100:height-100, 400:width-400]
+
+        gray = cv2.cvtColor(captured_img, cv2.COLOR_BGR2GRAY)
+        detection_result = find_max_contour(gray)
+
+        cv2.imshow('main', captured_img)
+        cv2.imshow('threshold', cv2.resize(detection_result['threshold_img'], (0, 0), fx=0.5, fy=0.5))
+        cv2.imshow('edges', cv2.resize(detection_result['edges_threshold_img'], (0, 0), fx=0.5, fy=0.5))
+        cv2.imshow('contours', cv2.resize(detection_result['contours_img'], (0, 0), fx=0.5, fy=0.5))
+
+        ch = cv2.waitKey(1)
+        if ch == 27:
+            break
+
+
+def capture_from_two_cameras():
+    cap_cam00 = create_capture(1)
+    cap_cam01 = create_capture(2)
+
+    while True:
+        flag, captured_img_00 = cap_cam00.read()
+        flag, captured_img_01 = cap_cam01.read()
+
+        if captured_img_00 is None or captured_img_01 is None:
+            continue
+
+        cv2.imshow('main_00', captured_img_00)
+        cv2.imshow('main_01', cv2.resize(captured_img_01, (0, 0), fx=0.5, fy=0.5, interpolation=cv2.INTER_CUBIC))
+
+        ch = cv2.waitKey(1)
+        if ch == 27:
+            cv2.imwrite('in/{0}_00.png'.format(time.strftime("%Y-%m-%d %H-%M-%S")), captured_img_00)
+            cv2.imwrite('in/{0}_01.png'.format(time.strftime("%Y-%m-%d %H-%M-%S")), captured_img_01)
+
 
 
 #   0  CV_CAP_PROP_POS_MSEC Current position of the video file in milliseconds.
@@ -20,8 +66,6 @@ import cv2
 #   16 CV_CAP_PROP_CONVERT_RGB Boolean flags indicating whether images should be converted to RGB.
 #   17 CV_CAP_PROP_WHITE_BALANCE Currently unsupported
 #   18 CV_CAP_PROP_RECTIFICATION Rectification flag for stereo cameras (note: only supported by DC1394 v 2.x backend currently)
-import time
-
 
 def create_capture(source = 0):
     cap = cv2.VideoCapture(source)
