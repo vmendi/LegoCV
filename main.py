@@ -1,16 +1,15 @@
-import glob
+from itertools import islice
 from os import listdir
 from os.path import isfile, basename
-from time import strftime
 
 import cv2
 import numpy as np
 from skimage import measure
 
-import video
-from calibration import calibrate, load_calibration, undistort_images, undistort_image
-from find_corners import find_corners
-from find_max_contour import find_max_contour, clip_img, find_moments, align_and_clip, find_edges, ensure_max_width
+from calibration import load_calibration, undistort_image
+from find_corners import find_corners, find_good_features_to_track, match_corners
+from find_max_contour import find_max_contour, clip_img, find_moments, align_and_clip, find_edges, ensure_max_width, \
+    find_edges_better
 from sift import match_with_sift, find_sift
 from texture import find_lbp
 
@@ -60,38 +59,75 @@ def detection(training_set_filenames, query_set_filenames):
     training_set = [ensure_max_width(res, 'clipped_img') for res in training_set]
     query_set = [ensure_max_width(res, 'clipped_img') for res in query_set]
 
-    training_set = [find_edges(filename, 'clipped_img') for filename in training_set]
-    query_set = [find_edges(filename, 'clipped_img') for filename in query_set]
+    training_set = [find_edges_better(filename, 'clipped_img') for filename in training_set]
+    query_set = [find_edges_better(filename, 'clipped_img') for filename in query_set]
 
     training_set = [find_moments(res, 'edges_img', binary_image=True) for res in training_set]
     query_set = [find_moments(res, 'edges_img', binary_image=True) for res in query_set]
 
-    training_set = [find_lbp(res, 'clipped_img', num_points=16, radius=8) for res in training_set]
-    query_set = [find_lbp(res, 'clipped_img', num_points=16, radius=8) for res in query_set]
+    training_set = [find_lbp(res, 'clipped_img', num_points=16, radius=2) for res in training_set]
+    query_set = [find_lbp(res, 'clipped_img', num_points=16, radius=2) for res in query_set]
 
-    [cv2.imwrite(f'out/{res["basename"]}-clipped.png', res['clipped_img']) for res in training_set]
+    training_set = [find_good_features_to_track(res, 'clipped_img') for res in training_set]
+    query_set = [find_good_features_to_track(res, 'clipped_img') for res in query_set]
+
+    #[cv2.imwrite(f'out/{res["basename"]}-clipped.png', res['clipped_img']) for res in training_set]
 
     for query_idx, query in enumerate(query_set):
 
+        print(f"Query {query['filename']}")
         # print(f"Query moments:\n{query['hu_moments']}")
-        print(f"Query {query['filename']} histogram:\n{query['hist']}")
+        # print(f"Query {query['filename']} histogram:\n{query['hist']}")
+
         cv2.imwrite(f'out/{query["basename"]}-query.png', query['clipped_img'])
+        # cv2.imwrite(f'out/{query["basename"]}-lbp.png', query['lbp_img'])
+        cv2.imwrite(f'out/{query["basename"]}-edges.png', query['edges_img'])
+        cv2.imwrite(f'out/{query["basename"]}-corners.png', query['corners_img'])
+
+        scores = {}
 
         filtered_training_set = filter_by_dimensions(query, training_set)
 
-        # filtered_training_set = sort_by_match_shapes(query, filtered_training_set, 'edges_img')
-        # filtered_training_set = sort_by_histogram_chi_squared_distance(query, filtered_training_set)
-        filtered_training_set = sort_by_mse(query, filtered_training_set)
+        #[cv2.imwrite(f'out/{res["basename"]}-corners.png', res['corners_img']) for res in filtered_training_set]
+
+        if len(filtered_training_set) > 1:
+            filtered_training_set = sort_by_match_corners(query, filtered_training_set, scores)
+            filtered_training_set = filter_by_score(filtered_training_set, scores, 'corners_scores', 0.6, None)
+            filtered_training_set = sort_by_match_shapes(query, filtered_training_set, 'edges_img', scores)
+            filtered_training_set = filter_by_score(filtered_training_set, scores, 'shapes_scores', None, 0.03)
+            filtered_training_set = sort_by_histogram_chi_squared_distance(query, filtered_training_set, scores)
 
         if len(filtered_training_set) >= 1:
             best_match = filtered_training_set[0]
             # print(f"Best match moments:\n{best_match['hu_moments']}")
             cv2.imwrite(f'out/{query["basename"]}-best-match.png', best_match['clipped_img'])
+            # cv2.imwrite(f'out/{query["basename"]}-best-match-lbp.png', best_match['lbp_img'])
+            cv2.imwrite(f'out/{query["basename"]}-best-match-edges.png', best_match['edges_img'])
+            cv2.imwrite(f'out/{query["basename"]}-best-match-corners.png', best_match['corners_img'])
 
-        # if len(sorted_by_match_shapes) >= 2:
-        #     second_match = sorted_by_match_shapes[1]
-        #     cv2.imwrite(f'out/{query_idx}-second-match.png', second_match['grey_img'])
-        #     cv2.imwrite(f'out/{query_idx}-second-match-edges.png', second_match['edges_img'])
+        # if len(filtered_training_set) >= 2:
+        #     best_match = filtered_training_set[1]
+        #     cv2.imwrite(f'out/{query["basename"]}-second-best-match.png', best_match['clipped_img'])
+            # cv2.imwrite(f'out/{query["basename"]}-second-best-match-lbp.png', best_match['lbp_img'])
+            # cv2.imwrite(f'out/{query["basename"]}-second-best-edges.png', best_match['edges_img'])
+
+
+def filter_by_score(training_set, scores, what_to_filter_key, min_value, max_value):
+    return [blah for blah in training_set
+            if (min_value is None or scores[what_to_filter_key][blah['filename']] > min_value)
+            and (max_value is None or scores[what_to_filter_key][blah['filename']] < max_value)]
+
+
+def sort_by_match_corners(query, training_set, scores):
+    scores['corners_scores'] = {}
+
+    def sorter_func(a):
+        percentage_match, matches = match_corners(query, a)
+        print(f"Corners match for {a['filename']}: {percentage_match}")
+        scores['corners_scores'][a['filename']] = percentage_match
+        return percentage_match
+
+    return sorted(training_set, key=sorter_func, reverse=True)
 
 
 def sort_by_mse(query, training_set):
@@ -114,11 +150,14 @@ def sort_by_mse(query, training_set):
     return sorted(training_set, key=sorter_func)
 
 
-def sort_by_histogram_chi_squared_distance(query, training_set):
+def sort_by_histogram_chi_squared_distance(query, training_set, scores):
+    scores['hist_scores'] = {}
+
     def sorter_func(a):
-        def chi2_distance(histA, histB, eps = 1e-10):
-            chi_dist = 0.5 * np.sum([((a - b) ** 2) / (a + b + eps) for (a, b) in zip(histA, histB)])
+        def chi2_distance(histA, histB):
+            chi_dist = cv2.compareHist(histA, histB, cv2.HISTCMP_CHISQR_ALT)
             print(f"ChiDist for {a['filename']}: {chi_dist}")
+            scores['hist_scores'][a['filename']] = chi_dist
             return chi_dist
 
         return chi2_distance(query['hist'], a['hist'])
@@ -126,10 +165,13 @@ def sort_by_histogram_chi_squared_distance(query, training_set):
     return sorted(training_set, key=sorter_func)
 
 
-def sort_by_match_shapes(query, training_set, img_key):
+def sort_by_match_shapes(query, training_set, img_key, scores):
+    scores['shapes_scores'] = {}
+
     def sorter_func(a):
         match_coeff = cv2.matchShapes(a[img_key], query[img_key], method=1, parameter=0.0)
         print(f"MatchCoeff for {a['filename']}: {match_coeff}")
+        scores['shapes_scores'][a['filename']] = match_coeff
         return match_coeff
 
     return sorted(training_set, key=sorter_func)
@@ -147,7 +189,7 @@ def filter_by_dimensions(query, training_set):
     for training in training_set:
         w_ratio, h_ratio = get_dimensions_ratio(training['contour_rect'], query['contour_rect'])
 
-        if w_ratio < 1.05 and h_ratio < 1.05:
+        if w_ratio < 1.1 and h_ratio < 1.1:
             filtered.append(training)
 
     return filtered
@@ -194,33 +236,34 @@ def iterate_over_images_quick_test(img_names):
 
         find_max_contour(res)
         align_and_clip(res, 'grey_img')
+        ensure_max_width(res, 'clipped_img')
 
-        find_corners(res, 'clipped_img')
+        find_good_features_to_track(res, 'clipped_img')
         cv2.imwrite('out/{0}-corners.png'.format(img_idx), res['corners_img'])
 
-        find_sift(res, 'clipped_img')
-        cv2.imwrite('out/{0}-sift.png'.format(img_idx), res['sift_img'])
+        # find_sift(res, 'clipped_img')
+        # cv2.imwrite('out/{0}-sift.png'.format(img_idx), res['sift_img'])
 
 
 if __name__ == '__main__':
     training_filenames = ['in/control/' + file for file in listdir('in/control')]
     training_filenames = [file for file in training_filenames if isfile(file)]
 
-    training_filenames = [
-                          'in/control/10.bmp',
-                          'in/control/13.bmp',
-                          'in/control/21.bmp',
-                          'in/control/22.bmp',
-                          ]
+    # training_filenames = [
+    #                       'in/control/10.bmp',
+    #                       'in/control/13.bmp',
+    #                       'in/control/21.bmp',
+    #                       'in/control/22.bmp',
+    #                       ]
 
-    query_filenames = ['in/trial/' + file for file in listdir('in/trial')]
+    training_filenames.remove('in/control/14.bmp')
+
+    query_filenames = ['in/trial02/' + file for file in listdir('in/trial02')]
     query_filenames = [file for file in query_filenames if isfile(file)]
+
     query_filenames = [
-                         'in/trial/01.bmp',
-                         'in/trial/02.bmp',
-                         'in/trial/05.bmp',
-                         'in/trial/07.bmp',
-                      ]
+        'in/trial02/01.bmp',
+    ]
 
     # iterate_sift(training_filenames, query_filenames)
     detection(training_filenames, query_filenames)
@@ -228,5 +271,7 @@ if __name__ == '__main__':
 
     # camera_matrix, dist_coefs = load_calibration()
     # undistort_images(camera_matrix, dist_coefs, glob.glob('in/trial/*.bmp'))
+
+    # iterate_over_images_quick_test(training_filenames)
 
 cv2.destroyAllWindows()

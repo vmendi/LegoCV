@@ -6,7 +6,7 @@ def find_edges(res, img_key):
     img = res[img_key]
 
     # Gausian removes small edges during Canny
-    # img = cv2.GaussianBlur(img, (3, 3), 0)
+    img = cv2.GaussianBlur(img, (3, 3), 0)
     # threshold_img = cv2.bilateralFilter(threshold_img.copy(), dst=threshold_img, d=3, sigmaColor=250, sigmaSpace=250)
     # threshold_img = cv2.erode(threshold_img.copy(), kernel=np.ones((1,1), np.uint8), iterations=2)
     # threshold_img = cv2.morphologyEx(threshold_img.copy(), cv2.MORPH_OPEN, np.ones((5,5), np.uint8))
@@ -15,6 +15,15 @@ def find_edges(res, img_key):
     # edges_img = cv2.Canny(img, threshold1=0, threshold2=250, apertureSize=3, L2gradient=False)
 
     edges_img = cv2.Canny(img, threshold1=50, threshold2=200, apertureSize=3, L2gradient=True)
+    res['edges_img'] = edges_img
+
+    return res
+
+def find_edges_better(res, img_key):
+    img = res[img_key]
+    ret, threshold_img = cv2.threshold(img, thresh=210, maxval=255, type=cv2.THRESH_BINARY_INV)
+    edges_img = cv2.Canny(threshold_img, threshold1=100, threshold2=255, apertureSize=3)
+
     res['edges_img'] = edges_img
 
     return res
