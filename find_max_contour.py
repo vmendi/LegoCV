@@ -4,7 +4,7 @@ import numpy as np
 
 def supress_background_noise(res, img_key):
     img = res[img_key]
-    ret, threshold_img = cv2.threshold(img, thresh=220, maxval=255, type=cv2.THRESH_BINARY_INV)
+    ret, threshold_img = cv2.threshold(img, thresh=220, maxval=255, type=cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
     img[threshold_img == 0] = 255
     return res
 
@@ -45,7 +45,7 @@ def find_threshold_better(res, img_key):
 
 
 def find_max_contour(res):
-    ret, threshold_img = cv2.threshold(res['grey_img'], thresh=210, maxval=255, type=cv2.THRESH_BINARY_INV)
+    ret, threshold_img = cv2.threshold(res['grey_img'], thresh=210, maxval=255, type=cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
 
     edges_img = cv2.Canny(threshold_img, threshold1=100, threshold2=255, apertureSize=3)
 
@@ -87,6 +87,8 @@ def find_max_contour(res):
 
         box = cv2.boxPoints(contour_rect)
         cv2.drawContours(contours_img, [np.array(box).astype(int)], 0, (200, 200, 200), thickness=2)
+    else:
+        print(f"Warning! No countour in find_max_contour! filename: {res['filename']}")
 
     res['max_contour'] = max_contour
     res['all_contours'] = contours
