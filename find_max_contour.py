@@ -4,7 +4,7 @@ import numpy as np
 
 def supress_background_noise(res, img_key):
     img = res[img_key]
-    ret, threshold_img = cv2.threshold(img, thresh=220, maxval=255, type=cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
+    ret, threshold_img = cv2.threshold(img, thresh=240, maxval=255, type=cv2.THRESH_BINARY_INV)
     img[threshold_img == 0] = 255
     return res
 
@@ -26,9 +26,10 @@ def find_edges(res, img_key):
 
     return res
 
+
 def find_edges_better(res, img_key):
     img = res[img_key]
-    ret, threshold_img = cv2.threshold(img, thresh=210, maxval=255, type=cv2.THRESH_BINARY_INV)
+    ret, threshold_img = cv2.threshold(img, thresh=210, maxval=255, type=cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
     edges_img = cv2.Canny(threshold_img, threshold1=100, threshold2=255, apertureSize=3)
 
     res['edges_img'] = edges_img
@@ -38,7 +39,7 @@ def find_edges_better(res, img_key):
 
 def find_threshold_better(res, img_key):
     img = res[img_key]
-    ret, threshold_img = cv2.threshold(img, thresh=250, maxval=255, type=cv2.THRESH_BINARY_INV)
+    ret, threshold_img = cv2.threshold(img, thresh=210, maxval=255, type=cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
     res['threshold_img'] = threshold_img
 
     return res

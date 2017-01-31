@@ -20,7 +20,7 @@ def find_good_features_to_track(res, img_key):
     img = res[img_key].copy()
 
     corners = cv2.goodFeaturesToTrack(img, maxCorners=50, qualityLevel=0.02, minDistance=5,
-                                      blockSize=3, useHarrisDetector=True, k=0.04)
+                                      blockSize=3, useHarrisDetector=True, k=0.08)
 
     if corners is not None and len(corners) > 0:
         corners = np.int0(corners)

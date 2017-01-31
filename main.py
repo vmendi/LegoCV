@@ -96,11 +96,11 @@ def detection(training_set_filenames, query_set_filenames):
         if len(filtered_training_set) > 1:
             filtered_training_set = sort_by_match_corners(query, filtered_training_set, scores)
             filtered_training_set = filter_by_proximity_to_score(filtered_training_set, scores, 'corners_scores',
-                                                                 find_top_score(scores, 'corners_scores'), 0.2)
+                                                                 find_top_score(scores, 'corners_scores'), 0.3)
             #filtered_training_set = filter_by_score(filtered_training_set, scores, 'corners_scores', 0.5, None)
-            # filtered_training_set = sort_by_match_shapes(query, filtered_training_set, 'edges_img', scores)
-            # filtered_training_set = filter_by_proximity_to_score(filtered_training_set, scores, 'shapes_scores',
-            #                                                      find_bottom_score(scores, 'shapes_scores'), 0.2)
+            filtered_training_set = sort_by_match_shapes(query, filtered_training_set, 'edges_img', scores)
+            filtered_training_set = filter_by_proximity_to_score(filtered_training_set, scores, 'shapes_scores',
+                                                                 find_bottom_score(scores, 'shapes_scores'), 0.3)
             #filtered_training_set = filter_by_score(filtered_training_set, scores, 'shapes_scores', None, 0.03)
             filtered_training_set = sort_by_histogram_chi_squared_distance(query, filtered_training_set, scores)
             #filtered_training_set = filter_by_score(filtered_training_set, scores, 'hist_scores', None, 1000.0)
@@ -113,13 +113,6 @@ def detection(training_set_filenames, query_set_filenames):
             cv2.imwrite(f'out/{query["basename"]}-best-match-edges.png', best_match['edges_img'])
             cv2.imwrite(f'out/{query["basename"]}-best-match-corners.png', best_match['corners_img'])
             #save_hist(best_match)
-
-        # if len(filtered_training_set) >= 2:
-        #     best_match = filtered_training_set[1]
-        #     cv2.imwrite(f'out/{query["basename"]}-second-best-match.png', best_match['clipped_img'])
-            # cv2.imwrite(f'out/{query["basename"]}-second-best-match-lbp.png', best_match['lbp_img'])
-            # cv2.imwrite(f'out/{query["basename"]}-second-best-edges.png', best_match['edges_img'])
-
 
 def find_top_score(scores, what_to_filter_key):
     max_score = -1
@@ -260,13 +253,14 @@ def save_to_file(res, img_idx):
     combined[img_01.shape[0]:img_01.shape[0] + img_04.shape[0], img_01.shape[1]:img_01.shape[1] + img_04.shape[1]] = img_04
 
     rect = res['contour_rect']
-    rect_text = "Bounding rect ({0:.0f},{1:.0f}), angle {2:.0f}".format(rect[1][0], rect[1][1], rect[2])
 
-    cv2.putText(combined, rect_text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1, cv2.LINE_AA)
+    if rect:
+        rect_text = "Bounding rect ({0:.0f},{1:.0f}), angle {2:.0f}".format(rect[1][0], rect[1][1], rect[2])
+
+        cv2.putText(combined, rect_text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1, cv2.LINE_AA)
+        print("Image {0} {1}".format(img_idx, rect_text))
 
     cv2.imwrite('out/{0}-combined.png'.format(img_idx), combined)
-
-    print("Image {0} {1}".format(img_idx, rect_text))
 
 
 def iterate_over_images_quick_test(img_names):
@@ -296,17 +290,15 @@ if __name__ == '__main__':
     #                       ]
 
     # training_filenames = [
-    #     'in/control/22.bmp'
+    #     'in/control/14.bmp'
     # ]
-
-    #training_filenames.remove('in/control/14.bmp')
 
     query_filenames = ['in/trial02/' + file for file in listdir('in/trial02')]
     query_filenames = [file for file in query_filenames if isfile(file)]
 
-    query_filenames = [
-        'in/trial02/10.bmp',
-    ]
+    # query_filenames = [
+    #     'in/trial02/22.bmp',
+    # ]
 
     # iterate_sift(training_filenames, query_filenames)
     detection(training_filenames, query_filenames)
