@@ -19,8 +19,8 @@ def find_corners(res, img_key):
 def find_good_features_to_track(res, img_key):
     img = res[img_key].copy()
 
-    corners = cv2.goodFeaturesToTrack(img, maxCorners=25, qualityLevel=0.001, minDistance=5,
-                                      blockSize=3, useHarrisDetector=True, k=0.1)
+    corners = cv2.goodFeaturesToTrack(img, maxCorners=50, qualityLevel=0.02, minDistance=5,
+                                      blockSize=3, useHarrisDetector=True, k=0.04)
 
     if corners is not None and len(corners) > 0:
         corners = np.int0(corners)
@@ -28,7 +28,7 @@ def find_good_features_to_track(res, img_key):
 
         for i in corners:
             x,y = i.ravel()
-            cv2.circle(img, (x,y), 1, 0, -1)
+            cv2.circle(img, (x,y), 3, 0, -1)
     else:
         corners = []
 
@@ -59,7 +59,7 @@ def match_corners(res_a, res_b):
             for index_b, corner_b in enumerate(corners_b):
                 dist = distance.euclidean(corner_a, corner_b)
 
-                if dist < min_dist and dist < 0.05:
+                if dist < min_dist and dist < 0.10:
                     min_dist = dist
                     min_index_b = index_b
 
@@ -74,7 +74,7 @@ def match_corners(res_a, res_b):
     first_percentage_matched, first_matches = match_corners_inner(normalized_a, normalized_b)
 
     # Flip image A (ensure_max_width sets the left to right axis as the longest coordinate)
-    second_percentage_matched, second_matches = match_corners_inner([width_a, height_a] - normalized_a, normalized_b)
+    second_percentage_matched, second_matches = match_corners_inner([1, 1] - normalized_a, normalized_b)
 
     if first_percentage_matched > second_percentage_matched:
         return first_percentage_matched, first_matches

@@ -2,6 +2,13 @@ import cv2
 import numpy as np
 
 
+def supress_background_noise(res, img_key):
+    img = res[img_key]
+    ret, threshold_img = cv2.threshold(img, thresh=220, maxval=255, type=cv2.THRESH_BINARY_INV)
+    img[threshold_img == 0] = 255
+    return res
+
+
 def find_edges(res, img_key):
     img = res[img_key]
 
@@ -25,6 +32,14 @@ def find_edges_better(res, img_key):
     edges_img = cv2.Canny(threshold_img, threshold1=100, threshold2=255, apertureSize=3)
 
     res['edges_img'] = edges_img
+
+    return res
+
+
+def find_threshold_better(res, img_key):
+    img = res[img_key]
+    ret, threshold_img = cv2.threshold(img, thresh=250, maxval=255, type=cv2.THRESH_BINARY_INV)
+    res['threshold_img'] = threshold_img
 
     return res
 
@@ -120,13 +135,14 @@ def align_and_clip(res, img_key):
     topleft_x = rot_center_x - (rect_width*0.5)
     topleft_y = rot_center_y - (rect_height*0.5)
 
-    res['clipped_img'] = img[int(topleft_y):int(topleft_y+rect_height+2),
-                             int(topleft_x):int(topleft_x+rect_width+2)]
+    final_topleft_x = max(int(topleft_x-3), 0)
+    final_topleft_y = max(int(topleft_y-3), 0)
 
-    # _, res['clipped_threshold_img'] = cv2.threshold(res['clipped_img'], thresh=180, maxval=255,
-    #                                                 type=cv2.THRESH_BINARY_INV)
-    # otsu_threshold, res['clipped_threshold_img'] = cv2.threshold(res['clipped_img'], thresh=0, maxval=255,
-    #                                                              type=cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+    final_bottomright_x = min(int(topleft_x+rect_width+3), width)
+    final_bottomright_y = min(int(topleft_y+rect_height+3), height)
+
+    res['clipped_img'] = img[final_topleft_y:final_bottomright_y,
+                             final_topleft_x:final_bottomright_x]
 
     return res
 

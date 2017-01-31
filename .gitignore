@@ -1,5 +1,5 @@
 *.pyc
-python3_env/
+venv/
 .idea/
 __pycache__
 dist/
