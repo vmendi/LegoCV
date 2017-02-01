@@ -60,6 +60,7 @@ De http://scikit-image.org/docs/dev/api/skimage.measure.html
 - compare_ssim
     KK. Solo sirve para medir la diferencia entre una imagen fuente y otra comprimida (calidad de broadcast...)
 
-
+- http://www.vlfeat.org/overview/covdet.html
+	Un buen catalogo de un monton de feature detectors/descriptors
 
 

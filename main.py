@@ -98,12 +98,16 @@ def detection(training_set_filenames, query_set_filenames):
             filtered_training_set = filter_by_proximity_to_score(filtered_training_set, scores, 'corners_scores',
                                                                  find_top_score(scores, 'corners_scores'), 0.3)
             #filtered_training_set = filter_by_score(filtered_training_set, scores, 'corners_scores', 0.5, None)
+
             filtered_training_set = sort_by_match_shapes(query, filtered_training_set, 'edges_img', scores)
-            filtered_training_set = filter_by_proximity_to_score(filtered_training_set, scores, 'shapes_scores',
-                                                                 find_bottom_score(scores, 'shapes_scores'), 0.3)
-            #filtered_training_set = filter_by_score(filtered_training_set, scores, 'shapes_scores', None, 0.03)
+            # filtered_training_set = filter_by_proximity_to_score(filtered_training_set, scores, 'shapes_scores',
+            #                                                      find_bottom_score(scores, 'shapes_scores'), 0.3)
+            filtered_training_set = filter_by_score(filtered_training_set, scores, 'shapes_scores', None, 0.2)
+
             filtered_training_set = sort_by_histogram_chi_squared_distance(query, filtered_training_set, scores)
-            #filtered_training_set = filter_by_score(filtered_training_set, scores, 'hist_scores', None, 1000.0)
+
+            sum_shapes_and_lbp_scores(scores)
+            filtered_training_set = sort_by_score(filtered_training_set, scores, 'sum_shapes_hist')
 
         if len(filtered_training_set) >= 1:
             best_match = filtered_training_set[0]
@@ -113,6 +117,15 @@ def detection(training_set_filenames, query_set_filenames):
             cv2.imwrite(f'out/{query["basename"]}-best-match-edges.png', best_match['edges_img'])
             cv2.imwrite(f'out/{query["basename"]}-best-match-corners.png', best_match['corners_img'])
             #save_hist(best_match)
+
+
+
+def sort_by_score(training_set, scores, what_to_sort, reverse=True):
+    def sorter_func(a):
+        return scores[what_to_sort][a['filename']]
+
+    return sorted(training_set, key=sorter_func, reverse=reverse)
+
 
 def find_top_score(scores, what_to_filter_key):
     max_score = -1
@@ -146,6 +159,20 @@ def filter_by_score(training_set, scores, what_to_filter_key, min_value, max_val
     return [blah for blah in training_set
             if (min_value is None or scores[what_to_filter_key][blah['filename']] > min_value)
             and (max_value is None or scores[what_to_filter_key][blah['filename']] < max_value)]
+
+
+def sum_shapes_and_lbp_scores(scores):
+    scores['sum_shapes_hist'] = {}
+
+    for hist_key, hist_value in scores['hist_scores'].items():
+        shape_value = (1 - 5*scores['shapes_scores'][hist_key])
+
+        if shape_value < 0:
+            raise Exception("shape score has to be filtered to remove < 0.1 values")
+
+        scores['sum_shapes_hist'][hist_key] = hist_value * shape_value
+
+        print(f"SumDist for {hist_key}: {scores['sum_shapes_hist'][hist_key]}")
 
 
 def sort_by_match_corners(query, training_set, scores):
@@ -293,12 +320,12 @@ if __name__ == '__main__':
     #     'in/control/14.bmp'
     # ]
 
-    query_filenames = ['in/trial02/' + file for file in listdir('in/trial02')]
+    query_filenames = ['in/trial03/' + file for file in listdir('in/trial03')]
     query_filenames = [file for file in query_filenames if isfile(file)]
 
-    # query_filenames = [
-    #     'in/trial02/22.bmp',
-    # ]
+    query_filenames = [
+        'in/trial03/03.bmp',
+    ]
 
     # iterate_sift(training_filenames, query_filenames)
     detection(training_filenames, query_filenames)
