@@ -130,11 +130,11 @@ def align_and_clip(res, img_key):
     topleft_x = rot_center_x - (rect_width*0.5)
     topleft_y = rot_center_y - (rect_height*0.5)
 
-    final_topleft_x = max(int(topleft_x-3), 0)
-    final_topleft_y = max(int(topleft_y-3), 0)
+    final_topleft_x = max(int(topleft_x-10), 0)
+    final_topleft_y = max(int(topleft_y-10), 0)
 
-    final_bottomright_x = min(int(topleft_x+rect_width+3), width)
-    final_bottomright_y = min(int(topleft_y+rect_height+3), height)
+    final_bottomright_x = min(int(topleft_x+rect_width+10), width)
+    final_bottomright_y = min(int(topleft_y+rect_height+10), height)
 
     res['clipped_img'] = img[final_topleft_y:final_bottomright_y,
                              final_topleft_x:final_bottomright_x]

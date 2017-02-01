@@ -4,7 +4,6 @@ from os.path import isfile, basename
 import cv2
 import numpy as np
 import skimage
-from skimage import measure
 
 from calibration import load_calibration, undistort_image
 from find_corners import find_good_features_to_track, match_corners
@@ -74,12 +73,9 @@ def detection(training_set_filenames, query_set_filenames):
     training_set = [find_good_features_to_track(res, 'clipped_img') for res in training_set]
     query_set = [find_good_features_to_track(res, 'clipped_img') for res in query_set]
 
-    #[cv2.imwrite(f'out/{res["basename"]}-clipped.png', res['clipped_img']) for res in training_set]
-
     for query_idx, query in enumerate(query_set):
 
         print(f"Query {query['filename']}")
-        # print(f"Query moments:\n{query['hu_moments']}")
 
         cv2.imwrite(f'out/{query["basename"]}-query.png', query['clipped_img'])
         cv2.imwrite(f'out/{query["basename"]}-lbp.png', query['lbp_img'])
@@ -90,7 +86,7 @@ def detection(training_set_filenames, query_set_filenames):
 
         filtered_training_set = filter_by_dimensions(query, training_set)
 
-        [cv2.imwrite(f'out/{res["basename"]}-edges.png', res['edges_img']) for res in filtered_training_set]
+        # [cv2.imwrite(f'out/{res["basename"]}-lbp.png', res['lbp_img']) for res in filtered_training_set]
 
         if len(filtered_training_set) > 1:
             calc_corners_score(query, filtered_training_set, scores)
@@ -184,10 +180,10 @@ def calc_correlation_score(query, training_set, scores):
         same_dimensions_train = train_img[0:min_height, 0:min_width]
         same_dimensions_query = query_img[0:min_height, 0:min_width]
 
-        corr = skimage.feature.match_template(same_dimensions_query, same_dimensions_train)
+        corr = skimage.feature.match_template(same_dimensions_query, same_dimensions_train, pad_input=True)
         first_corr = corr.max()
 
-        corr = skimage.feature.match_template(cv2.flip(same_dimensions_query, -1), same_dimensions_train)
+        corr = skimage.feature.match_template(cv2.flip(same_dimensions_query, -1), same_dimensions_train, pad_input=True)
         second_corr = corr.max()
 
         corr = max(first_corr, second_corr)
@@ -300,16 +296,16 @@ if __name__ == '__main__':
     #                       'in/control/22.bmp',
     #                       ]
 
-    # training_filenames = [
-    #     'in/control/14.bmp'
-    # ]
+    training_filenames = [
+        'in/control/21.bmp', 'in/control/22.bmp'
+    ]
 
     query_filenames = ['in/trial02/' + file for file in listdir('in/trial02')]
     query_filenames = [file for file in query_filenames if isfile(file)]
 
-    # query_filenames = [
-    #     'in/trial02/04.bmp',
-    # ]
+    query_filenames = [
+        'in/trial02/04.bmp',
+    ]
 
     # iterate_sift(training_filenames, query_filenames)
     detection(training_filenames, query_filenames)
