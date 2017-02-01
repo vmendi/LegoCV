@@ -90,7 +90,7 @@ def detection(training_set_filenames, query_set_filenames):
 
         filtered_training_set = filter_by_dimensions(query, training_set)
 
-        #[cv2.imwrite(f'out/{res["basename"]}-lbp.png', res['lbp_img']) for res in filtered_training_set]
+        [cv2.imwrite(f'out/{res["basename"]}-edges.png', res['edges_img']) for res in filtered_training_set]
 
         if len(filtered_training_set) > 1:
             calc_corners_score(query, filtered_training_set, scores)
@@ -98,7 +98,6 @@ def detection(training_set_filenames, query_set_filenames):
                                                                  find_top_score(scores, 'corners_scores'), 0.3)
 
             calc_shapes_score(query, filtered_training_set, scores)
-            filtered_training_set = filter_by_score(filtered_training_set, scores, 'shapes_scores', None, 0.2)
             calc_histogram_score(query, filtered_training_set, scores)
             calc_correlation_score(query, filtered_training_set, scores)
             calc_aggregated_score(scores)
@@ -158,14 +157,15 @@ def filter_by_score(training_set, scores, what_to_filter_key, min_value, max_val
 def calc_aggregated_score(scores):
     scores['sum_shapes_hist'] = {}
 
-    for hist_key, hist_value in scores['hist_scores'].items():
+    for hist_key in scores['hist_scores']:
+        hist_score = scores['hist_scores'][hist_key]
         correlation_score = scores['correlation_scores'][hist_key]
-        shape_value = (1 - 5*scores['shapes_scores'][hist_key])
+        shape_value = scores['shapes_scores'][hist_key]
 
         if shape_value < 0:
             raise Exception("shape score has to be filtered to remove < 0.1 values")
 
-        scores['sum_shapes_hist'][hist_key] = hist_value * shape_value * correlation_score
+        scores['sum_shapes_hist'][hist_key] = (hist_score + shape_value + correlation_score) / 3
 
         print(f"SumDist for {hist_key}: {scores['sum_shapes_hist'][hist_key]}")
 
@@ -184,10 +184,10 @@ def calc_correlation_score(query, training_set, scores):
         same_dimensions_train = train_img[0:min_height, 0:min_width]
         same_dimensions_query = query_img[0:min_height, 0:min_width]
 
-        corr = skimage.feature.match_template(same_dimensions_query, same_dimensions_train, pad_input=True)
+        corr = skimage.feature.match_template(same_dimensions_query, same_dimensions_train)
         first_corr = corr.max()
 
-        corr = skimage.feature.match_template(cv2.flip(same_dimensions_query, -1), same_dimensions_train, pad_input=True)
+        corr = skimage.feature.match_template(cv2.flip(same_dimensions_query, -1), same_dimensions_train)
         second_corr = corr.max()
 
         corr = max(first_corr, second_corr)
@@ -211,9 +211,11 @@ def calc_histogram_score(query, training_set, scores):
     for train in training_set:
         # For some similarity functions a LARGER value indicates higher similarity (Correlation and Intersection).
         # And for others, a SMALLER value indicates higher similarity (Chi-Squared and Hellinger).
-        hist_dist = cv2.compareHist(query['hist'], train['hist'], cv2.HISTCMP_CORREL)
-        print(f"HistDist for {train['filename']}: {hist_dist}")
-        scores['hist_scores'][train['filename']] = hist_dist
+        hist_dist = cv2.compareHist(query['hist'], train['hist'], cv2.HISTCMP_BHATTACHARYYA)
+
+        # Histogram counts as double!
+        scores['hist_scores'][train['filename']] = 2*(1 - hist_dist)
+        print(f"HistDist for {train['filename']}: {scores['hist_scores'][train['filename']]}")
 
 
 def calc_shapes_score(query, training_set, scores):
@@ -221,8 +223,8 @@ def calc_shapes_score(query, training_set, scores):
 
     for train in training_set:
         match_coeff = cv2.matchShapes(train['edges_img'], query['edges_img'], method=1, parameter=0.0)
-        print(f"MatchCoeff for {train['filename']}: {match_coeff}")
-        scores['shapes_scores'][train['filename']] = match_coeff
+        scores['shapes_scores'][train['filename']] = 1 - (5*match_coeff)
+        print(f"MatchCoeff for {train['filename']}: {scores['shapes_scores'][train['filename']]}")
 
 
 def filter_by_dimensions(query, training_set):
@@ -305,9 +307,9 @@ if __name__ == '__main__':
     query_filenames = ['in/trial02/' + file for file in listdir('in/trial02')]
     query_filenames = [file for file in query_filenames if isfile(file)]
 
-    query_filenames = [
-        'in/trial02/04.bmp',
-    ]
+    # query_filenames = [
+    #     'in/trial02/04.bmp',
+    # ]
 
     # iterate_sift(training_filenames, query_filenames)
     detection(training_filenames, query_filenames)
