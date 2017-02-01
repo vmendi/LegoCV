@@ -147,5 +147,6 @@ def ensure_max_width(res, img_key):
 
     if img.shape[0] > img.shape[1]:
         res[img_key] = cv2.transpose(img)
+        res[img_key] = cv2.flip(res[img_key], 0)
 
     return res
