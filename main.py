@@ -3,6 +3,7 @@ from os.path import isfile, basename
 
 import cv2
 import numpy as np
+import skimage
 from skimage import measure
 
 from calibration import load_calibration, undistort_image
@@ -99,6 +100,7 @@ def detection(training_set_filenames, query_set_filenames):
             calc_shapes_score(query, filtered_training_set, scores)
             filtered_training_set = filter_by_score(filtered_training_set, scores, 'shapes_scores', None, 0.2)
             calc_histogram_score(query, filtered_training_set, scores)
+            calc_correlation_score(query, filtered_training_set, scores)
             calc_aggregated_score(scores)
 
             filtered_training_set = sort_by_score(filtered_training_set, scores, 'sum_shapes_hist')
@@ -157,14 +159,41 @@ def calc_aggregated_score(scores):
     scores['sum_shapes_hist'] = {}
 
     for hist_key, hist_value in scores['hist_scores'].items():
+        correlation_score = scores['correlation_scores'][hist_key]
         shape_value = (1 - 5*scores['shapes_scores'][hist_key])
 
         if shape_value < 0:
             raise Exception("shape score has to be filtered to remove < 0.1 values")
 
-        scores['sum_shapes_hist'][hist_key] = hist_value * shape_value
+        scores['sum_shapes_hist'][hist_key] = hist_value * shape_value * correlation_score
 
         print(f"SumDist for {hist_key}: {scores['sum_shapes_hist'][hist_key]}")
+
+
+def calc_correlation_score(query, training_set, scores):
+    scores['correlation_scores'] = {}
+
+    query_img = query['clipped_img']
+
+    for train in training_set:
+        train_img = train['clipped_img']
+
+        min_width = min(query_img.shape[1], train_img.shape[1])
+        min_height = min(query_img.shape[0], train_img.shape[0])
+
+        same_dimensions_train = train_img[0:min_height, 0:min_width]
+        same_dimensions_query = query_img[0:min_height, 0:min_width]
+
+        corr = skimage.feature.match_template(same_dimensions_query, same_dimensions_train, pad_input=True)
+        first_corr = corr.max()
+
+        corr = skimage.feature.match_template(cv2.flip(same_dimensions_query, -1), same_dimensions_train, pad_input=True)
+        second_corr = corr.max()
+
+        corr = max(first_corr, second_corr)
+
+        scores['correlation_scores'][train['filename']] = corr
+        print(f"CorrScore for {train['filename']}: {scores['correlation_scores'][train['filename']]}")
 
 
 def calc_corners_score(query, training_set, scores):
@@ -276,9 +305,9 @@ if __name__ == '__main__':
     query_filenames = ['in/trial02/' + file for file in listdir('in/trial02')]
     query_filenames = [file for file in query_filenames if isfile(file)]
 
-    # query_filenames = [
-    #     'in/trial03/03.bmp',
-    # ]
+    query_filenames = [
+        'in/trial02/04.bmp',
+    ]
 
     # iterate_sift(training_filenames, query_filenames)
     detection(training_filenames, query_filenames)
