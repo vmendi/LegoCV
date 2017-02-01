@@ -79,13 +79,11 @@ def detection(training_set_filenames, query_set_filenames):
 
         print(f"Query {query['filename']}")
         # print(f"Query moments:\n{query['hu_moments']}")
-        # print(f"Query {query['filename']} histogram:\n{query['hist']}")
 
         cv2.imwrite(f'out/{query["basename"]}-query.png', query['clipped_img'])
         cv2.imwrite(f'out/{query["basename"]}-lbp.png', query['lbp_img'])
         cv2.imwrite(f'out/{query["basename"]}-edges.png', query['edges_img'])
         cv2.imwrite(f'out/{query["basename"]}-corners.png', query['corners_img'])
-        #save_hist(query)
 
         scores = {}
 
@@ -94,30 +92,24 @@ def detection(training_set_filenames, query_set_filenames):
         #[cv2.imwrite(f'out/{res["basename"]}-lbp.png', res['lbp_img']) for res in filtered_training_set]
 
         if len(filtered_training_set) > 1:
-            filtered_training_set = sort_by_match_corners(query, filtered_training_set, scores)
+            calc_corners_score(query, filtered_training_set, scores)
             filtered_training_set = filter_by_proximity_to_score(filtered_training_set, scores, 'corners_scores',
                                                                  find_top_score(scores, 'corners_scores'), 0.3)
-            #filtered_training_set = filter_by_score(filtered_training_set, scores, 'corners_scores', 0.5, None)
 
-            filtered_training_set = sort_by_match_shapes(query, filtered_training_set, 'edges_img', scores)
-            # filtered_training_set = filter_by_proximity_to_score(filtered_training_set, scores, 'shapes_scores',
-            #                                                      find_bottom_score(scores, 'shapes_scores'), 0.3)
+            calc_shapes_score(query, filtered_training_set, scores)
             filtered_training_set = filter_by_score(filtered_training_set, scores, 'shapes_scores', None, 0.2)
+            calc_histogram_score(query, filtered_training_set, scores)
+            calc_aggregated_score(scores)
 
-            filtered_training_set = sort_by_histogram_chi_squared_distance(query, filtered_training_set, scores)
-
-            sum_shapes_and_lbp_scores(scores)
             filtered_training_set = sort_by_score(filtered_training_set, scores, 'sum_shapes_hist')
 
         if len(filtered_training_set) >= 1:
             best_match = filtered_training_set[0]
-            # print(f"Best match moments:\n{best_match['hu_moments']}")
+            print(f"Best match for {query['filename']}: {best_match['filename']}")
             cv2.imwrite(f'out/{query["basename"]}-best-match.png', best_match['clipped_img'])
             cv2.imwrite(f'out/{query["basename"]}-best-match-lbp.png', best_match['lbp_img'])
             cv2.imwrite(f'out/{query["basename"]}-best-match-edges.png', best_match['edges_img'])
             cv2.imwrite(f'out/{query["basename"]}-best-match-corners.png', best_match['corners_img'])
-            #save_hist(best_match)
-
 
 
 def sort_by_score(training_set, scores, what_to_sort, reverse=True):
@@ -161,7 +153,7 @@ def filter_by_score(training_set, scores, what_to_filter_key, min_value, max_val
             and (max_value is None or scores[what_to_filter_key][blah['filename']] < max_value)]
 
 
-def sum_shapes_and_lbp_scores(scores):
+def calc_aggregated_score(scores):
     scores['sum_shapes_hist'] = {}
 
     for hist_key, hist_value in scores['hist_scores'].items():
@@ -175,72 +167,33 @@ def sum_shapes_and_lbp_scores(scores):
         print(f"SumDist for {hist_key}: {scores['sum_shapes_hist'][hist_key]}")
 
 
-def sort_by_match_corners(query, training_set, scores):
+def calc_corners_score(query, training_set, scores):
     scores['corners_scores'] = {}
 
-    def sorter_func(a):
-        percentage_match, matches = match_corners(query, a)
-        print(f"Corners match for {a['filename']}: {percentage_match}")
-        scores['corners_scores'][a['filename']] = percentage_match
-        return percentage_match
-
-    return sorted(training_set, key=sorter_func, reverse=True)
+    for train in training_set:
+        percentage_match, matches = match_corners(query, train)
+        print(f"Corners match for {train['filename']}: {percentage_match}")
+        scores['corners_scores'][train['filename']] = percentage_match
 
 
-def sort_by_mse(query, training_set):
-    def sorter_func(a):
-        query_img = query['clipped_img']
-        a_img = a['clipped_img']
-
-        min_width = min(query_img.shape[1], a_img.shape[1])
-        min_height = min(query_img.shape[0], a_img.shape[0])
-
-        same_dimensions_a = a_img[0:min_height, 0:min_width]
-        same_dimensions_query = query_img[0:min_height, 0:min_width]
-
-        similarity = measure.compare_mse(same_dimensions_query, same_dimensions_a)
-
-        print(f"Similarity for {a['filename']}: {similarity}")
-
-        return similarity
-
-    return sorted(training_set, key=sorter_func)
-
-
-def sort_by_histogram_chi_squared_distance(query, training_set, scores):
+def calc_histogram_score(query, training_set, scores):
     scores['hist_scores'] = {}
 
-    def sorter_func(a):
-        def chi2_distance(histA, histB):
-            # For some similarity functions a LARGER value indicates higher similarity (Correlation and Intersection).
-            # And for others, a SMALLER value indicates higher similarity (Chi-Squared and Hellinger).
-            hist_dist = cv2.compareHist(histA, histB, cv2.HISTCMP_CORREL)
-            print(f"HistDist for {a['filename']}: {hist_dist}")
-            scores['hist_scores'][a['filename']] = hist_dist
-            return hist_dist
-
-        return chi2_distance(query['hist'], a['hist'])
-
-    return sorted(training_set, key=sorter_func, reverse=True)
+    for train in training_set:
+        # For some similarity functions a LARGER value indicates higher similarity (Correlation and Intersection).
+        # And for others, a SMALLER value indicates higher similarity (Chi-Squared and Hellinger).
+        hist_dist = cv2.compareHist(query['hist'], train['hist'], cv2.HISTCMP_CORREL)
+        print(f"HistDist for {train['filename']}: {hist_dist}")
+        scores['hist_scores'][train['filename']] = hist_dist
 
 
-def sort_by_match_shapes(query, training_set, img_key, scores):
+def calc_shapes_score(query, training_set, scores):
     scores['shapes_scores'] = {}
 
-    def sorter_func(a):
-        match_coeff = cv2.matchShapes(a[img_key], query[img_key], method=1, parameter=0.0)
-        print(f"MatchCoeff for {a['filename']}: {match_coeff}")
-        scores['shapes_scores'][a['filename']] = match_coeff
-        return match_coeff
-
-    return sorted(training_set, key=sorter_func)
-
-
-def sort_by_area_moment(query, tranining_set):
-    def sorter_func(a):
-        return np.math.pow(query['moments']['m00'] - a['moments']['m00'], 2)
-
-    return sorted(tranining_set, key=sorter_func)
+    for train in training_set:
+        match_coeff = cv2.matchShapes(train['edges_img'], query['edges_img'], method=1, parameter=0.0)
+        print(f"MatchCoeff for {train['filename']}: {match_coeff}")
+        scores['shapes_scores'][train['filename']] = match_coeff
 
 
 def filter_by_dimensions(query, training_set):
@@ -320,12 +273,12 @@ if __name__ == '__main__':
     #     'in/control/14.bmp'
     # ]
 
-    query_filenames = ['in/trial03/' + file for file in listdir('in/trial03')]
+    query_filenames = ['in/trial02/' + file for file in listdir('in/trial02')]
     query_filenames = [file for file in query_filenames if isfile(file)]
 
-    query_filenames = [
-        'in/trial03/03.bmp',
-    ]
+    # query_filenames = [
+    #     'in/trial03/03.bmp',
+    # ]
 
     # iterate_sift(training_filenames, query_filenames)
     detection(training_filenames, query_filenames)

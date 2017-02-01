@@ -29,7 +29,7 @@ def find_edges(res, img_key):
 
 def find_edges_better(res, img_key):
     img = res[img_key]
-    ret, threshold_img = cv2.threshold(img, thresh=210, maxval=255, type=cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
+    ret, threshold_img = cv2.threshold(img, thresh=-1, maxval=255, type=cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
     edges_img = cv2.Canny(threshold_img, threshold1=100, threshold2=255, apertureSize=3)
 
     res['edges_img'] = edges_img
@@ -37,16 +37,8 @@ def find_edges_better(res, img_key):
     return res
 
 
-def find_threshold_better(res, img_key):
-    img = res[img_key]
-    ret, threshold_img = cv2.threshold(img, thresh=210, maxval=255, type=cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
-    res['threshold_img'] = threshold_img
-
-    return res
-
-
 def find_max_contour(res):
-    ret, threshold_img = cv2.threshold(res['grey_img'], thresh=210, maxval=255, type=cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
+    ret, threshold_img = cv2.threshold(res['grey_img'], thresh=-1, maxval=255, type=cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
 
     edges_img = cv2.Canny(threshold_img, threshold1=100, threshold2=255, apertureSize=3)
 
@@ -96,7 +88,7 @@ def find_max_contour(res):
     res['contour_rect'] = contour_rect
     res['bounding_box'] = bounding_box
     res['threshold_img'] = threshold_img
-    res['edges_threshold_img'] = edges_img
+    res['edges_img'] = edges_img
     res['contours_img'] = contours_img
 
     return res
