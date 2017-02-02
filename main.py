@@ -117,6 +117,8 @@ def detection(training_set_filenames, query_set_filenames):
             cv2.imwrite(f'out/{query["basename"]}-best-match-edges-threshold.png', best_match['edges_threshold_img'])
             cv2.imwrite(f'out/{query["basename"]}-best-match-corners.png', best_match['corners_img'])
 
+        print("")
+
 
 def sort_by_score(training_set, scores, what_to_sort, reverse=True):
     def sorter_func(a):
@@ -249,15 +251,11 @@ def calc_shapes_score(query, training_set, scores):
 
     for train in training_set:
         match_coeff = cv2.matchShapes(train['edges_threshold_img'], query['edges_threshold_img'], method=1, parameter=0.0)
-        if match_coeff > 0.2:
-            match_coeff = 0.2
         scores['shapes_scores'][train['filename']] = 1 - (5*match_coeff)
         print(f"MatchCoeff for {train['filename']}: {scores['shapes_scores'][train['filename']]}")
 
     for train in training_set:
         match_coeff = cv2.matchShapes(train['edges_img'], query['edges_img'], method=1, parameter=0.0)
-        if match_coeff > 0.2:
-            match_coeff = 0.2
         # The 0.5 is totally empirical. edges_img is much more noisy and therefore we don't want its contribution
         # to the final score to be as important as edges_threshold_img
         scores['shapes_scores02'][train['filename']] = (1 - (5*match_coeff)) * 0.5
@@ -339,7 +337,7 @@ if __name__ == '__main__':
 
     # training_filenames = [ 'in/control/00.bmp', 'in/control/14.bmp']
 
-    query_filenames = ['in/trial01/' + file for file in listdir('in/trial01')]
+    query_filenames = ['in/trial02/' + file for file in listdir('in/trial02')]
     query_filenames = [file for file in query_filenames if isfile(file)]
 
     # query_filenames = [
