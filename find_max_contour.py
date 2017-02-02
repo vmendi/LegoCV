@@ -13,40 +13,33 @@ def find_edges(res, img_key):
     img = res[img_key]
 
     # Gausian removes small edges during Canny
-    img = cv2.GaussianBlur(img, (3, 3), 0)
-    # threshold_img = cv2.bilateralFilter(threshold_img.copy(), dst=threshold_img, d=3, sigmaColor=250, sigmaSpace=250)
-    # threshold_img = cv2.erode(threshold_img.copy(), kernel=np.ones((1,1), np.uint8), iterations=2)
-    # threshold_img = cv2.morphologyEx(threshold_img.copy(), cv2.MORPH_OPEN, np.ones((5,5), np.uint8))
-
-    # 0, 250, 3, False goes well with the Gaus filter
-    # edges_img = cv2.Canny(img, threshold1=0, threshold2=250, apertureSize=3, L2gradient=False)
-
-    edges_img = cv2.Canny(img, threshold1=50, threshold2=200, apertureSize=3, L2gradient=True)
+    img = cv2.GaussianBlur(img, (5, 5), 0)
+    edges_img = cv2.Canny(img, threshold1=0, threshold2=25, apertureSize=3, L2gradient=True)
     res['edges_img'] = edges_img
 
     return res
 
 
-def find_edges_better(res, img_key):
+def find_edges_threshold(res, img_key):
     img = res[img_key]
     ret, threshold_img = cv2.threshold(img, thresh=-1, maxval=255, type=cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
-    edges_img = cv2.Canny(threshold_img, threshold1=100, threshold2=255, apertureSize=3)
-
-    res['edges_img'] = edges_img
-
+    # threshold_img = cv2.bilateralFilter(threshold_img.copy(), dst=threshold_img, d=3, sigmaColor=250, sigmaSpace=250)
+    # threshold_img = cv2.erode(threshold_img.copy(), kernel=np.ones((1,1), np.uint8), iterations=2)
+    # threshold_img = cv2.morphologyEx(threshold_img.copy(), cv2.MORPH_OPEN, np.ones((5,5), np.uint8))
+    edges_threshold_img = cv2.Canny(threshold_img, threshold1=100, threshold2=255, apertureSize=3)
+    res['edges_threshold_img'] = edges_threshold_img
     return res
 
 
 def find_max_contour(res):
     ret, threshold_img = cv2.threshold(res['grey_img'], thresh=-1, maxval=255, type=cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
-
-    edges_img = cv2.Canny(threshold_img, threshold1=100, threshold2=255, apertureSize=3)
+    edges_threshold_img = cv2.Canny(threshold_img, threshold1=100, threshold2=255, apertureSize=3)
 
     # Close before findContours helps with discontinuities in the perimeters
-    edges_img = cv2.morphologyEx(edges_img, cv2.MORPH_CLOSE, np.ones((5,5), np.uint8))
+    edges_threshold_img = cv2.morphologyEx(edges_threshold_img, cv2.MORPH_CLOSE, np.ones((5,5), np.uint8))
 
     # Extract contours
-    contours_img, contours, hierarchy = cv2.findContours(edges_img.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+    contours_img, contours, hierarchy = cv2.findContours(edges_threshold_img.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
     contour_rect = None
     bounding_box = None
     max_contour = None
@@ -88,7 +81,7 @@ def find_max_contour(res):
     res['contour_rect'] = contour_rect
     res['bounding_box'] = bounding_box
     res['threshold_img'] = threshold_img
-    res['edges_img'] = edges_img
+    res['edges_threshold_img'] = edges_threshold_img
     res['contours_img'] = contours_img
 
     return res

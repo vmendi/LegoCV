@@ -4,11 +4,13 @@ from os.path import isfile, basename
 import cv2
 import numpy as np
 import skimage
+from skimage.feature import greycomatrix
+from skimage.feature import greycoprops
 
 from calibration import load_calibration, undistort_image
 from find_corners import find_good_features_to_track, match_corners
 from find_max_contour import find_max_contour, clip_img, find_moments, align_and_clip, ensure_max_width, \
-    find_edges_better, supress_background_noise
+    find_edges_threshold, supress_background_noise, find_edges
 from sift import match_with_sift
 from texture import find_lbp
 
@@ -61,11 +63,14 @@ def detection(training_set_filenames, query_set_filenames):
     training_set = [ensure_max_width(res, 'clipped_img') for res in training_set]
     query_set = [ensure_max_width(res, 'clipped_img') for res in query_set]
 
-    training_set = [find_edges_better(res, 'clipped_img') for res in training_set]
-    query_set = [find_edges_better(res, 'clipped_img') for res in query_set]
+    training_set = [find_edges(res, 'clipped_img') for res in training_set]
+    query_set = [find_edges(res, 'clipped_img') for res in query_set]
 
-    training_set = [find_moments(res, 'edges_img', binary_image=True) for res in training_set]
-    query_set = [find_moments(res, 'edges_img', binary_image=True) for res in query_set]
+    training_set = [find_edges_threshold(res, 'clipped_img') for res in training_set]
+    query_set = [find_edges_threshold(res, 'clipped_img') for res in query_set]
+
+    training_set = [find_moments(res, 'edges_threshold_img', binary_image=True) for res in training_set]
+    query_set = [find_moments(res, 'edges_threshold_img', binary_image=True) for res in query_set]
 
     query_set = [find_lbp(res, 'clipped_img', num_points=16, radius=2) for res in query_set]
     training_set = [find_lbp(res, 'clipped_img', num_points=16, radius=2) for res in training_set]
@@ -80,6 +85,7 @@ def detection(training_set_filenames, query_set_filenames):
         cv2.imwrite(f'out/{query["basename"]}-query.png', query['clipped_img'])
         cv2.imwrite(f'out/{query["basename"]}-lbp.png', query['lbp_img'])
         cv2.imwrite(f'out/{query["basename"]}-edges.png', query['edges_img'])
+        cv2.imwrite(f'out/{query["basename"]}-edges-threshold.png', query['edges_threshold_img'])
         cv2.imwrite(f'out/{query["basename"]}-corners.png', query['corners_img'])
 
         scores = {}
@@ -95,17 +101,20 @@ def detection(training_set_filenames, query_set_filenames):
 
             calc_shapes_score(query, filtered_training_set, scores)
             calc_histogram_score(query, filtered_training_set, scores)
-            calc_correlation_score(query, filtered_training_set, scores)
+            calc_template_matching_correlation_score(query, filtered_training_set, scores)
+            calc_grey_corr_score(query, filtered_training_set, scores)
             calc_aggregated_score(scores)
 
-            filtered_training_set = sort_by_score(filtered_training_set, scores, 'sum_shapes_hist')
+            filtered_training_set = sort_by_score(filtered_training_set, scores, 'final_score02')
 
         if len(filtered_training_set) >= 1:
             best_match = filtered_training_set[0]
+
             print(f"Best match for {query['filename']}: {best_match['filename']}")
             cv2.imwrite(f'out/{query["basename"]}-best-match.png', best_match['clipped_img'])
             cv2.imwrite(f'out/{query["basename"]}-best-match-lbp.png', best_match['lbp_img'])
             cv2.imwrite(f'out/{query["basename"]}-best-match-edges.png', best_match['edges_img'])
+            cv2.imwrite(f'out/{query["basename"]}-best-match-edges-threshold.png', best_match['edges_threshold_img'])
             cv2.imwrite(f'out/{query["basename"]}-best-match-corners.png', best_match['corners_img'])
 
 
@@ -151,22 +160,47 @@ def filter_by_score(training_set, scores, what_to_filter_key, min_value, max_val
 
 
 def calc_aggregated_score(scores):
-    scores['sum_shapes_hist'] = {}
+    scores['final_score'] = {}
+    scores['final_score02'] = {}
 
     for hist_key in scores['hist_scores']:
-        hist_score = scores['hist_scores'][hist_key]
-        correlation_score = scores['correlation_scores'][hist_key]
-        shape_value = scores['shapes_scores'][hist_key]
+        scores['final_score'][hist_key] = (scores['hist_scores'][hist_key]
+                                           + scores['shapes_scores'][hist_key]
+                                           + scores['correlation_scores'][hist_key])
+        print(f"FinalScore for {hist_key}: {scores['final_score'][hist_key]}")
 
-        if shape_value < 0:
-            raise Exception("shape score has to be filtered to remove < 0.1 values")
+    for hist_key in scores['hist_scores']:
+        scores['final_score02'][hist_key] = (scores['hist_scores'][hist_key]
+                                             + scores['shapes_scores'][hist_key]
+                                             + scores['shapes_scores02'][hist_key]
+                                             + scores['correlation_scores'][hist_key])
+        print(f"FinalScore02 for {hist_key}: {scores['final_score02'][hist_key]}")
 
-        scores['sum_shapes_hist'][hist_key] = (hist_score + shape_value + correlation_score) / 3
 
-        print(f"SumDist for {hist_key}: {scores['sum_shapes_hist'][hist_key]}")
+def calc_grey_corr_score(query, training_set, scores):
+    scores['grey_corr_scores'] = {}
+
+    query_comatrix = greycomatrix(query['clipped_img'], [1], [0])
+    query_asm = greycoprops(query_comatrix, prop='dissimilarity')
+
+    for train in training_set:
+        train_comatrix = greycomatrix(train['clipped_img'], [1], [0])
+        train_asm = greycoprops(train_comatrix, prop='dissimilarity')
+        scores['grey_corr_scores'][train['filename']] = abs(query_asm - train_asm)
+        print(f"GreyCorr for {train['filename']}: {scores['grey_corr_scores'][train['filename']]}")
 
 
-def calc_correlation_score(query, training_set, scores):
+def clip_to_same_dimensions(query_img, train_img):
+    min_width = min(query_img.shape[1], train_img.shape[1])
+    min_height = min(query_img.shape[0], train_img.shape[0])
+
+    same_dimensions_query = query_img[0:min_height, 0:min_width]
+    same_dimensions_train = train_img[0:min_height, 0:min_width]
+
+    return same_dimensions_query, same_dimensions_train
+
+
+def calc_template_matching_correlation_score(query, training_set, scores):
     scores['correlation_scores'] = {}
 
     query_img = query['clipped_img']
@@ -174,11 +208,7 @@ def calc_correlation_score(query, training_set, scores):
     for train in training_set:
         train_img = train['clipped_img']
 
-        min_width = min(query_img.shape[1], train_img.shape[1])
-        min_height = min(query_img.shape[0], train_img.shape[0])
-
-        same_dimensions_train = train_img[0:min_height, 0:min_width]
-        same_dimensions_query = query_img[0:min_height, 0:min_width]
+        same_dimensions_query, same_dimensions_train = clip_to_same_dimensions(query_img, train_img)
 
         corr = skimage.feature.match_template(same_dimensions_query, same_dimensions_train, pad_input=True)
         first_corr = corr.max()
@@ -197,8 +227,8 @@ def calc_corners_score(query, training_set, scores):
 
     for train in training_set:
         percentage_match, matches = match_corners(query, train)
-        print(f"Corners match for {train['filename']}: {percentage_match}")
         scores['corners_scores'][train['filename']] = percentage_match
+        print(f"Corners match for {train['filename']}: {scores['corners_scores'][train['filename']]}")
 
 
 def calc_histogram_score(query, training_set, scores):
@@ -209,18 +239,29 @@ def calc_histogram_score(query, training_set, scores):
         # And for others, a SMALLER value indicates higher similarity (Chi-Squared and Hellinger).
         hist_dist = cv2.compareHist(query['hist'], train['hist'], cv2.HISTCMP_BHATTACHARYYA)
 
-        # Histogram counts as double!
-        scores['hist_scores'][train['filename']] = 2*(1 - hist_dist)
+        scores['hist_scores'][train['filename']] = 1 - hist_dist
         print(f"HistDist for {train['filename']}: {scores['hist_scores'][train['filename']]}")
 
 
 def calc_shapes_score(query, training_set, scores):
     scores['shapes_scores'] = {}
+    scores['shapes_scores02'] = {}
+
+    for train in training_set:
+        match_coeff = cv2.matchShapes(train['edges_threshold_img'], query['edges_threshold_img'], method=1, parameter=0.0)
+        if match_coeff > 0.2:
+            match_coeff = 0.2
+        scores['shapes_scores'][train['filename']] = 1 - (5*match_coeff)
+        print(f"MatchCoeff for {train['filename']}: {scores['shapes_scores'][train['filename']]}")
 
     for train in training_set:
         match_coeff = cv2.matchShapes(train['edges_img'], query['edges_img'], method=1, parameter=0.0)
-        scores['shapes_scores'][train['filename']] = 1 - (5*match_coeff)
-        print(f"MatchCoeff for {train['filename']}: {scores['shapes_scores'][train['filename']]}")
+        if match_coeff > 0.2:
+            match_coeff = 0.2
+        # The 0.5 is totally empirical. edges_img is much more noisy and therefore we don't want its contribution
+        # to the final score to be as important as edges_threshold_img
+        scores['shapes_scores02'][train['filename']] = (1 - (5*match_coeff)) * 0.5
+        print(f"MatchCoeff02 for {train['filename']}: {scores['shapes_scores02'][train['filename']]}")
 
 
 def filter_by_dimensions(query, training_set):
@@ -296,16 +337,14 @@ if __name__ == '__main__':
     #                       'in/control/22.bmp',
     #                       ]
 
-    training_filenames = [
-        'in/control/21.bmp', 'in/control/22.bmp'
-    ]
+    # training_filenames = [ 'in/control/00.bmp', 'in/control/14.bmp']
 
-    query_filenames = ['in/trial02/' + file for file in listdir('in/trial02')]
+    query_filenames = ['in/trial01/' + file for file in listdir('in/trial01')]
     query_filenames = [file for file in query_filenames if isfile(file)]
 
-    query_filenames = [
-        'in/trial02/04.bmp',
-    ]
+    # query_filenames = [
+    #     'in/trial02/01.bmp',
+    # ]
 
     # iterate_sift(training_filenames, query_filenames)
     detection(training_filenames, query_filenames)
