@@ -14,7 +14,7 @@ def find_edges(res, img_key):
 
     # Gausian removes small edges during Canny
     img = cv2.GaussianBlur(img, (5, 5), 0)
-    edges_img = cv2.Canny(img, threshold1=0, threshold2=25, apertureSize=3, L2gradient=True)
+    edges_img = cv2.Canny(img, threshold1=0, threshold2=50, apertureSize=3, L2gradient=True)
     res['edges_img'] = edges_img
 
     return res
@@ -123,11 +123,11 @@ def align_and_clip(res, img_key):
     topleft_x = rot_center_x - (rect_width*0.5)
     topleft_y = rot_center_y - (rect_height*0.5)
 
-    final_topleft_x = max(int(topleft_x-10), 0)
-    final_topleft_y = max(int(topleft_y-10), 0)
+    final_topleft_x = max(int(topleft_x-3), 0)
+    final_topleft_y = max(int(topleft_y-3), 0)
 
-    final_bottomright_x = min(int(topleft_x+rect_width+10), width)
-    final_bottomright_y = min(int(topleft_y+rect_height+10), height)
+    final_bottomright_x = min(int(topleft_x+rect_width+3), width)
+    final_bottomright_y = min(int(topleft_y+rect_height+3), height)
 
     res['clipped_img'] = img[final_topleft_y:final_bottomright_y,
                              final_topleft_x:final_bottomright_x]

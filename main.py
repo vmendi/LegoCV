@@ -172,10 +172,12 @@ def calc_aggregated_score(scores):
         print(f"FinalScore for {hist_key}: {scores['final_score'][hist_key]}")
 
     for hist_key in scores['hist_scores']:
-        scores['final_score02'][hist_key] = (scores['hist_scores'][hist_key]
-                                             + scores['shapes_scores'][hist_key]
-                                             + scores['shapes_scores02'][hist_key]
-                                             + scores['correlation_scores'][hist_key])
+        # scores['final_score02'][hist_key] = (scores['hist_scores'][hist_key]
+        #                                      + scores['shapes_scores'][hist_key]
+        #                                      + scores['shapes_scores02'][hist_key]
+        #                                      + scores['correlation_scores'][hist_key])
+        scores['final_score02'][hist_key] = (scores['correlation_scores'][hist_key]
+                                             + scores['shapes_scores02'][hist_key])
         print(f"FinalScore02 for {hist_key}: {scores['final_score02'][hist_key]}")
 
 
